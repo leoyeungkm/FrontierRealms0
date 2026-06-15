@@ -1,8 +1,0 @@
-# 只部署 client（根目錄 Vite）。用開頭斜線「只鎖根目錄」，
-# 否則 sui/ 會誤殺 src/sui/（client 的 Sui 整合）→ build 找不到 wallet.js
-/server/
-/sui/
-/scripts/
-node_modules/
-sui.exe
-*.log
