@@ -214,112 +214,110 @@
     .dbg-btn:hover { background: #334; color: #fff; }
     .q-btn.q-on { background: #3a5a2a; border-color: #7fc35a; color: #cfff9a; }
 
-    /* ── 開場：戰情室 × 羊皮紙戰役地圖 ──────────────────────────
-       色票：戰情室炭黑 #100b06 / 羊皮紙 #d8c6a0 #c4ae82 / 墨 #2c2114
-             焦褐 #6b5536 / 戰火橙 #c2521e / 鎏金 #cf9a2f
-       字體：Cinzel(雕刻碑銘=王國/標題) · Oswald(窄體戰報=標籤/數據)
-       署名元素：羊皮紙上的手繪戰役地圖 + 蠟封王國紋章 + 燒灼的中央戰場 */
+    /* ── 開場：暗色電影感（對齊 fr0.world）+ FR:Ø glitch logo ──────
+       直播 3D 世界當英雄背景（壓暗）；五王國色票編碼；logo 色散光暈延伸到 UI。
+       字體：Cinzel(王國/標題) · Oswald(戰報/數據) */
     #intro-screen {
       position: fixed; inset: 0; z-index: 500; display: flex;
       align-items: center; justify-content: center;
       background:
-        radial-gradient(ellipse at 50% 30%, rgba(60,40,22,0.35) 0%, rgba(0,0,0,0) 55%),
-        radial-gradient(ellipse at 50% 50%, #1a120a 0%, #0a0705 78%);
+        radial-gradient(ellipse at 50% 38%, rgba(6,8,16,0.32) 0%, rgba(4,5,12,0.82) 78%),
+        linear-gradient(180deg, rgba(4,5,12,0.55) 0%, rgba(4,5,12,0) 32%, rgba(4,5,12,0.72) 100%);
     }
+    #intro-lang {
+      position: absolute; top: 14px; right: 16px; z-index: 2;
+      font: 500 12px 'Oswald', sans-serif; letter-spacing: 1px; cursor: pointer;
+      color: #aeb8cf; background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(174,184,207,0.3); border-radius: 999px; padding: 4px 12px;
+    }
+    #intro-lang:hover { color: #fff; border-color: #aeb8cf; }
     #intro-card {
-      width: 440px; max-width: 93vw; max-height: 93vh; overflow-y: auto;
-      padding: 30px 34px 26px; text-align: center; position: relative;
-      color: #2c2114; border-radius: 3px;
-      background:
-        radial-gradient(120% 80% at 50% -10%, rgba(255,250,235,0.5) 0%, rgba(255,250,235,0) 40%),
-        radial-gradient(100% 120% at 100% 100%, rgba(120,90,50,0.28) 0%, rgba(120,90,50,0) 45%),
-        radial-gradient(100% 120% at 0% 100%, rgba(120,90,50,0.22) 0%, rgba(120,90,50,0) 45%),
-        linear-gradient(168deg, #ddccA4 0%, #d2bd92 45%, #c7b083 100%);
-      border: 1px solid #6b5536;
-      box-shadow:
-        0 22px 70px rgba(0,0,0,0.7),
-        inset 0 0 0 6px rgba(122,94,54,0.22),
-        inset 0 0 60px rgba(90,64,32,0.35);   /* 邊緣焦痕 */
+      width: 460px; max-width: 94vw; max-height: 94vh; overflow-y: auto;
+      padding: 28px 32px 24px; text-align: center; position: relative; color: #c4cde0;
+      background: linear-gradient(180deg, rgba(14,16,26,0.82) 0%, rgba(8,9,16,0.9) 100%);
+      border: 1px solid rgba(120,140,200,0.25); border-radius: 14px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.72), inset 0 1px 0 rgba(255,255,255,0.06);
+      backdrop-filter: blur(8px);
     }
     #intro-card::-webkit-scrollbar { width: 7px; }
-    #intro-card::-webkit-scrollbar-thumb { background: #8a6f44; border-radius: 4px; }
-    #intro-title {
-      font-family: 'Cinzel', Georgia, serif; font-weight: 900; font-size: 33px;
-      letter-spacing: 4px; color: #241a0f; line-height: 1.05;
-      text-shadow: 0 1px 0 rgba(255,248,230,0.6), 0 -1px 0 rgba(60,40,20,0.25);  /* 雕刻凹凸 */
+    #intro-card::-webkit-scrollbar-thumb { background: rgba(120,140,200,0.4); border-radius: 4px; }
+    #intro-logo {
+      width: 210px; max-width: 64%; height: auto; margin: 4px auto 0; display: block;
+      filter: drop-shadow(0 0 18px rgba(150,170,255,0.45)) drop-shadow(0 0 44px rgba(130,90,210,0.28));
     }
-    #intro-title span { color: #c2521e; }   /* 0 = 戰火 */
+    #intro-title { display: none; }   /* 改用圖像 logo */
     #intro-sub {
-      font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 11px;
-      color: #6b5536; margin: 8px 0 4px; letter-spacing: 3px; text-transform: uppercase;
+      font: 500 11px 'Oswald', sans-serif; color: #8794ad;
+      margin: 12px 0 2px; letter-spacing: 2px; text-transform: uppercase;
     }
     .intro-label {
-      font-family: 'Oswald', sans-serif; text-align: left; font-size: 12px; font-weight: 600;
-      color: #9a4218; letter-spacing: 3px; text-transform: uppercase;
-      margin: 20px 0 8px; padding-bottom: 4px; border-bottom: 1px solid rgba(107,85,54,0.4);
+      font: 600 12px 'Oswald', sans-serif; text-align: left; color: #aeb8cf;
+      letter-spacing: 3px; text-transform: uppercase;
+      margin: 20px 0 9px; padding-bottom: 5px; border-bottom: 1px solid rgba(120,140,200,0.2);
     }
     #intro-login { display: flex; flex-direction: column; gap: 8px; }
     .intro-btn {
-      font-family: 'Oswald', sans-serif; font-weight: 500; font-size: 14px; letter-spacing: 1px;
-      padding: 11px; cursor: pointer; color: #2c2114;
-      background: rgba(255,250,235,0.35); border: 1.5px solid #6b5536; border-radius: 2px;
+      font: 500 14px 'Oswald', sans-serif; letter-spacing: 1px;
+      padding: 12px; cursor: pointer; color: #dce6f7;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(120,140,200,0.3); border-radius: 8px;
       transition: all .15s; display: flex; align-items: center; justify-content: center; gap: 8px;
     }
-    .intro-btn:hover { background: #2c2114; color: #e8d8b4; border-color: #2c2114; }
-    .intro-btn.intro-ghost { background: transparent; border-style: dashed; color: #6b5536; }
+    .intro-btn:hover { background: rgba(120,150,230,0.16); border-color: #6f86d0; box-shadow: 0 0 18px rgba(90,130,230,0.25); }
+    .intro-btn.intro-ghost { background: transparent; border-style: dashed; color: #8794ad; }
     .intro-tag {
-      font-family: 'Oswald', sans-serif; font-size: 10px; letter-spacing: 1px;
-      background: #9a4218; color: #f3e2c4; padding: 2px 7px; border-radius: 2px;
+      font: 10px 'Oswald', sans-serif; letter-spacing: 1px;
+      background: rgba(130,95,210,0.32); color: #d8c8ff; padding: 2px 7px; border-radius: 4px;
     }
     #intro-status {
-      font-family: 'Oswald', sans-serif; font-size: 11px; color: #7a6038; margin-top: 9px;
+      font: 11px 'Oswald', sans-serif; color: #7b88a0; margin-top: 9px;
       min-height: 16px; letter-spacing: .5px;
     }
-    #intro-status.ok { color: #3f7a3a; }
+    #intro-status.ok { color: #6fd09a; }
     #intro-nations { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
     .nation-btn {
-      padding: 9px 2px 6px; cursor: pointer; border: 1.5px solid #8a6f44; border-radius: 2px;
-      background: rgba(255,250,235,0.28); color: #3a2c18; transition: all .12s;
-      display: flex; flex-direction: column; align-items: center; gap: 5px;
-      font-family: 'Cinzel', serif; font-weight: 700; font-size: 10px;
+      padding: 10px 2px 7px; cursor: pointer; border: 1px solid rgba(120,140,200,0.25); border-radius: 8px;
+      background: rgba(255,255,255,0.04); color: #c4cde0; transition: all .12s;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      font: 700 10px 'Cinzel', serif;
     }
-    .nation-btn:hover { border-color: #2c2114; }
-    .nation-btn.sel { border-color: #2c2114; background: rgba(255,248,230,0.7); box-shadow: 0 0 0 2px var(--nc) inset; }
-    /* 蠟封紋章：放射漸層做出立體封蠟感 */
+    .nation-btn:hover { border-color: var(--nc); }
+    .nation-btn.sel { border-color: var(--nc); background: rgba(255,255,255,0.08); box-shadow: 0 0 16px var(--nc); }
+    /* 王國紋章：發光寶珠 */
     .nation-dot {
-      width: 24px; height: 24px; border-radius: 50%;
+      width: 22px; height: 22px; border-radius: 50%;
       background: var(--nc);   /* 後備：不支援 color-mix 時的純色 */
-      background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--nc) 70%, #fff) 0%, var(--nc) 45%, color-mix(in srgb, var(--nc) 60%, #000) 100%);
-      box-shadow: inset 0 -2px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+      background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--nc) 75%, #fff) 0%, var(--nc) 55%, color-mix(in srgb, var(--nc) 55%, #000) 100%);
+      box-shadow: 0 0 10px var(--nc), inset 0 -1px 2px rgba(0,0,0,0.4);
     }
     #intro-enter {
-      font-family: 'Cinzel', serif; font-weight: 700; letter-spacing: 3px;
-      width: 100%; margin-top: 22px; padding: 14px; cursor: pointer; border-radius: 2px;
-      color: #f7ecd2; border: 1px solid #7a2f10;
-      background: linear-gradient(180deg, #d2632a 0%, #b9451a 55%, #9a3713 100%);
-      box-shadow: 0 4px 0 #6e2a0e, inset 0 1px 0 rgba(255,220,180,0.4); font-size: 16px;
+      font: 700 16px 'Cinzel', serif; letter-spacing: 3px;
+      width: 100%; margin-top: 22px; padding: 14px; cursor: pointer; border-radius: 9px;
+      color: #fff; border: 1px solid var(--mync, #6f86d0);
+      background: rgba(20,26,42,0.9);   /* 後備 */
+      background: linear-gradient(180deg, color-mix(in srgb, var(--mync, #6f86d0) 50%, #12182a) 0%, rgba(10,12,20,0.92) 100%);
+      box-shadow: 0 0 26px color-mix(in srgb, var(--mync, #6f86d0) 38%, transparent), inset 0 1px 0 rgba(255,255,255,0.16);
     }
-    #intro-enter:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
-    #intro-enter:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #6e2a0e; }
+    #intro-enter:hover:not(:disabled) { filter: brightness(1.18); transform: translateY(-1px); }
+    #intro-enter:active:not(:disabled) { transform: translateY(1px); }
     #intro-enter:disabled {
-      background: rgba(120,95,56,0.25); color: #8a734a; border-color: #8a6f44;
-      box-shadow: none; cursor: not-allowed; font-family: 'Oswald', sans-serif; font-weight: 500; letter-spacing: 1px;
+      background: rgba(255,255,255,0.04); color: #6a7488; border-color: rgba(120,140,200,0.2);
+      box-shadow: none; cursor: not-allowed; font: 500 13px 'Oswald', sans-serif; letter-spacing: 1px;
     }
-    #intro-hint { font-family: 'Oswald', sans-serif; font-size: 10px; color: #8a734a; margin-top: 12px; letter-spacing: .5px; }
-    /* 世界地圖：羊皮紙上的墨繪戰役圖 */
+    #intro-hint { font: 10px 'Oswald', sans-serif; color: #6a7488; margin-top: 12px; letter-spacing: .5px; }
+    /* 世界地圖：暗色星圖戰役圖 */
     #intro-map {
-      margin-top: 4px; border-radius: 2px; overflow: hidden;
-      border: 1px solid #6b5536; box-shadow: inset 0 0 30px rgba(80,56,28,0.4);
-      background: radial-gradient(ellipse at 50% 45%, #cdb98a 0%, #b89c6e 95%);
+      margin-top: 4px; border-radius: 10px; overflow: hidden;
+      border: 1px solid rgba(120,140,200,0.2);
+      background: radial-gradient(ellipse at 50% 45%, #131a2e 0%, #080b16 95%);
     }
     #intro-map svg { display: block; width: 100%; height: auto; }
     .map-front { cursor: pointer; }
-    .map-nation-label { font-family: 'Cinzel', serif; font-weight: 700; font-size: 9px; fill: #3a2c18; text-anchor: middle; }
-    .map-center-count { font-family: 'Oswald', sans-serif; font-weight: 600; font-size: 22px; fill: #9a3713; text-anchor: middle; }
-    .map-center-sub { font-family: 'Cinzel', serif; font-weight: 700; font-size: 8px; fill: #5a4326; text-anchor: middle; letter-spacing: 1px; }
-    #intro-allegiance { font-family: 'Oswald', sans-serif; font-size: 12px; color: #6b5536; margin: 12px 0 2px; letter-spacing: .5px; }
-    #intro-allegiance b { font-family: 'Cinzel', serif; color: var(--mync, #9a3713); }
-    @keyframes bfpulse { 0%,100%{opacity:.35} 50%{opacity:.85} }
+    .map-nation-label { font: 700 9px 'Cinzel', serif; fill: #aeb8cf; text-anchor: middle; }
+    .map-center-count { font: 600 22px 'Oswald', sans-serif; fill: #fff; text-anchor: middle; }
+    .map-center-sub { font: 700 8px 'Cinzel', serif; fill: #9fb0d8; text-anchor: middle; letter-spacing: 1px; }
+    #intro-allegiance { font: 12px 'Oswald', sans-serif; color: #8794ad; margin: 12px 0 2px; letter-spacing: .5px; }
+    #intro-allegiance b { font-family: 'Cinzel', serif; color: var(--mync, #9fb0d8); }
+    @keyframes bfpulse { 0%,100%{opacity:.35} 50%{opacity:.9} }
 
     /* ── 角色外觀面板（O）── */
     #appearance-panel {
@@ -363,38 +361,40 @@
 <body>
   <canvas id="canvas"></canvas>
 
-  <!-- 開場：① 登入+宣誓王國 → ② 世界地圖(在線人數) → 參戰（FEZ 流程）-->
+  <!-- 開場：① 登入+宣誓王國 → ② 世界地圖(在線人數) → 出征 -->
   <div id="intro-screen">
     <div id="intro-card">
+      <button id="intro-lang">中 / EN</button>
+      <img id="intro-logo" src="/fr0-logo.png" alt="Frontier Realms 0" />
       <div id="intro-title">FRONTIER REALMS <span>0</span></div>
-      <div id="intro-sub">FEZ 風格・王國對戰（KvK）・建立於 Sui · Walrus</div>
+      <div id="intro-sub" data-i18n="tagline"></div>
 
       <!-- 階段一：登入 + 宣誓王國 -->
       <div id="intro-stage-login">
-        <div class="intro-label">① 登入</div>
+        <div class="intro-label" data-i18n="sec_signin"></div>
         <div id="intro-login">
-          <button class="intro-btn" id="intro-google">用 Google 登入<span class="intro-tag">zkLogin</span></button>
-          <button class="intro-btn" id="intro-wallet">連接 Sui 錢包</button>
-          <button class="intro-btn intro-ghost" id="intro-guest">以訪客進入</button>
+          <button class="intro-btn" id="intro-google"><span data-i18n="btn_google"></span><span class="intro-tag">zkLogin</span></button>
+          <button class="intro-btn" id="intro-wallet"><span data-i18n="btn_wallet"></span></button>
+          <button class="intro-btn intro-ghost" id="intro-guest"><span data-i18n="btn_guest"></span></button>
         </div>
-        <div id="intro-status">未登入 — 可用訪客身分遊玩，登入後外觀/資產上鏈</div>
+        <div id="intro-status"></div>
 
-        <div class="intro-label">② 宣誓效忠的王國</div>
+        <div class="intro-label" data-i18n="sec_pledge"></div>
         <div id="intro-nations"></div>
 
-        <button id="intro-tomap" disabled>請先宣誓王國</button>
+        <button id="intro-tomap" disabled></button>
       </div>
 
-      <!-- 階段二：世界地圖（中央大陸 Ecetia + 五王國 + 戰場在線人數）-->
+      <!-- 階段二：世界地圖（Aeloria + 五王國 + 戰場在線人數）-->
       <div id="intro-stage-map" style="display:none;">
-        <div class="intro-label">中央大陸 ECETIA — 五王國交戰（KvK）</div>
+        <div class="intro-label" data-i18n="map_label"></div>
         <div id="intro-map"><!-- SVG 由 intro.js 注入 --></div>
         <div id="intro-allegiance"></div>
-        <button id="intro-enter" disabled>連接戰場中…</button>
-        <button class="intro-btn intro-ghost" id="intro-back" style="margin-top:8px;">← 返回</button>
+        <button id="intro-enter" disabled></button>
+        <button class="intro-btn intro-ghost" id="intro-back" data-i18n="back" style="margin-top:8px;"></button>
       </div>
 
-      <div id="intro-hint">資產上鏈在外觀面板（O）操作；訪客可先試玩</div>
+      <div id="intro-hint" data-i18n="hint"></div>
     </div>
   </div>
 
