@@ -3085,7 +3085,10 @@ function startGame() {
   connectToServer().catch(console.error);
   canvas.requestPointerLock();
 }
-initIntro(startGame);   // 顯示開場（physics 載入時就能互動 / 完成 zkLogin 回跳）
+// 大廳查詢：用 Colyseus getAvailableRooms 取戰場在線人數（不需連進房）
+const _lobbyClient = new Client(SERVER_URL);
+async function queryServers() { return await _lobbyClient.getAvailableRooms(ROOM_NAME); }
+initIntro({ onEnter: startGame, queryServers });   // 登入→世界地圖(人數)→參戰
 
 initPhysics().then(() => {
   // Tower module needs physics reference (for colliders)

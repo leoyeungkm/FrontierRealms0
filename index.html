@@ -254,6 +254,19 @@
     #intro-enter:hover:not(:disabled) { filter: brightness(1.15); }
     #intro-enter:disabled { background: #2a3146; color: #6f7d96; cursor: not-allowed; }
     #intro-hint { font-size: 10px; color: #5b6884; margin-top: 10px; }
+    /* 世界地圖階段 */
+    #intro-map { margin-top: 6px; }
+    #intro-battlefield {
+      background: radial-gradient(ellipse at 50% 40%, #1c2742 0%, #10162a 90%);
+      border: 1px solid #34507a; border-radius: 10px; padding: 16px;
+    }
+    #bf-name { font-size: 16px; color: #eaf2ff; font-weight: 700; letter-spacing: 1px; }
+    #bf-count { font-size: 22px; color: #7fd0ff; font-weight: 800; margin: 8px 0 6px; }
+    #bf-bar { height: 8px; background: #0c1120; border-radius: 5px; overflow: hidden; border: 1px solid #2c3a5a; }
+    #bf-fill { height: 100%; width: 0%; background: linear-gradient(90deg,#3f8a4f,#d8b84a,#d85050); transition: width .4s; }
+    #bf-cap { font-size: 10px; color: #6f7d96; margin-top: 4px; }
+    #intro-allegiance { font-size: 12px; color: #8794ad; margin: 12px 0 4px; }
+    #intro-allegiance b { color: var(--mync, #7fd0ff); }
 
     /* ── 角色外觀面板（O）── */
     #appearance-panel {
@@ -297,25 +310,45 @@
 <body>
   <canvas id="canvas"></canvas>
 
-  <!-- 開場：登入 + 選國（Sui Overflow：zkLogin / 錢包 / 訪客）-->
+  <!-- 開場：① 登入+宣誓王國 → ② 世界地圖(在線人數) → 參戰（FEZ 流程）-->
   <div id="intro-screen">
     <div id="intro-card">
       <div id="intro-title">FRONTIER REALMS <span>0</span></div>
-      <div id="intro-sub">FEZ 風格・國對戰・建立於 Sui · Walrus</div>
+      <div id="intro-sub">FEZ 風格・王國對戰（KvK）・建立於 Sui · Walrus</div>
 
-      <div class="intro-label">① 登入</div>
-      <div id="intro-login">
-        <button class="intro-btn" id="intro-google">用 Google 登入<span class="intro-tag">zkLogin</span></button>
-        <button class="intro-btn" id="intro-wallet">連接 Sui 錢包</button>
-        <button class="intro-btn intro-ghost" id="intro-guest">以訪客進入</button>
+      <!-- 階段一：登入 + 宣誓王國 -->
+      <div id="intro-stage-login">
+        <div class="intro-label">① 登入</div>
+        <div id="intro-login">
+          <button class="intro-btn" id="intro-google">用 Google 登入<span class="intro-tag">zkLogin</span></button>
+          <button class="intro-btn" id="intro-wallet">連接 Sui 錢包</button>
+          <button class="intro-btn intro-ghost" id="intro-guest">以訪客進入</button>
+        </div>
+        <div id="intro-status">未登入 — 可用訪客身分遊玩，登入後外觀/資產上鏈</div>
+
+        <div class="intro-label">② 宣誓效忠的王國</div>
+        <div id="intro-nations"></div>
+
+        <button id="intro-tomap" disabled>請先宣誓王國</button>
       </div>
-      <div id="intro-status">未登入 — 可用訪客身分遊玩，登入後外觀/資產上鏈</div>
 
-      <div class="intro-label">② 選擇所屬國</div>
-      <div id="intro-nations"></div>
+      <!-- 階段二：世界地圖（中央大陸 Ecetia + 戰場在線人數）-->
+      <div id="intro-stage-map" style="display:none;">
+        <div class="intro-label">中央大陸 ECETIA — 王國交戰中</div>
+        <div id="intro-map">
+          <div id="intro-battlefield">
+            <div id="bf-name">⚔ Ecetia 中央戰場</div>
+            <div id="bf-count">查詢在線人數…</div>
+            <div id="bf-bar"><div id="bf-fill"></div></div>
+            <div id="bf-cap"></div>
+          </div>
+        </div>
+        <div id="intro-allegiance"></div>
+        <button id="intro-enter" disabled>連接戰場中…</button>
+        <button class="intro-btn intro-ghost" id="intro-back" style="margin-top:8px;">← 返回</button>
+      </div>
 
-      <button id="intro-enter" disabled>請先選擇所屬國</button>
-      <div id="intro-hint">登入需在外觀面板（O）操作上鏈資產；訪客可先試玩</div>
+      <div id="intro-hint">資產上鏈在外觀面板（O）操作；訪客可先試玩</div>
     </div>
   </div>
 
