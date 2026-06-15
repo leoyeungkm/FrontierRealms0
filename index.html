@@ -255,18 +255,20 @@
     #intro-enter:disabled { background: #2a3146; color: #6f7d96; cursor: not-allowed; }
     #intro-hint { font-size: 10px; color: #5b6884; margin-top: 10px; }
     /* 世界地圖階段 */
-    #intro-map { margin-top: 6px; }
-    #intro-battlefield {
-      background: radial-gradient(ellipse at 50% 40%, #1c2742 0%, #10162a 90%);
-      border: 1px solid #34507a; border-radius: 10px; padding: 16px;
+    #intro-map {
+      margin-top: 6px; border-radius: 10px; overflow: hidden;
+      background: radial-gradient(ellipse at 50% 45%, #16213c 0%, #0a0e1c 92%);
+      border: 1px solid #34507a;
     }
-    #bf-name { font-size: 16px; color: #eaf2ff; font-weight: 700; letter-spacing: 1px; }
-    #bf-count { font-size: 22px; color: #7fd0ff; font-weight: 800; margin: 8px 0 6px; }
-    #bf-bar { height: 8px; background: #0c1120; border-radius: 5px; overflow: hidden; border: 1px solid #2c3a5a; }
-    #bf-fill { height: 100%; width: 0%; background: linear-gradient(90deg,#3f8a4f,#d8b84a,#d85050); transition: width .4s; }
-    #bf-cap { font-size: 10px; color: #6f7d96; margin-top: 4px; }
+    #intro-map svg { display: block; width: 100%; height: auto; }
+    .map-front { cursor: pointer; }
+    .map-front-ring { transition: all .3s; }
+    .map-nation-label { font: 9px sans-serif; fill: #aab6cc; text-anchor: middle; }
+    .map-center-count { font: bold 20px sans-serif; fill: #eaf2ff; text-anchor: middle; }
+    .map-center-sub { font: 8px sans-serif; fill: #8fb8e0; text-anchor: middle; letter-spacing: 1px; }
     #intro-allegiance { font-size: 12px; color: #8794ad; margin: 12px 0 4px; }
     #intro-allegiance b { color: var(--mync, #7fd0ff); }
+    @keyframes bfpulse { 0%,100%{opacity:.5} 50%{opacity:1} }
 
     /* ── 角色外觀面板（O）── */
     #appearance-panel {
@@ -332,17 +334,10 @@
         <button id="intro-tomap" disabled>請先宣誓王國</button>
       </div>
 
-      <!-- 階段二：世界地圖（中央大陸 Ecetia + 戰場在線人數）-->
+      <!-- 階段二：世界地圖（中央大陸 Ecetia + 五王國 + 戰場在線人數）-->
       <div id="intro-stage-map" style="display:none;">
-        <div class="intro-label">中央大陸 ECETIA — 王國交戰中</div>
-        <div id="intro-map">
-          <div id="intro-battlefield">
-            <div id="bf-name">⚔ Ecetia 中央戰場</div>
-            <div id="bf-count">查詢在線人數…</div>
-            <div id="bf-bar"><div id="bf-fill"></div></div>
-            <div id="bf-cap"></div>
-          </div>
-        </div>
+        <div class="intro-label">中央大陸 ECETIA — 五王國交戰（KvK）</div>
+        <div id="intro-map"><!-- SVG 由 intro.js 注入 --></div>
         <div id="intro-allegiance"></div>
         <button id="intro-enter" disabled>連接戰場中…</button>
         <button class="intro-btn intro-ghost" id="intro-back" style="margin-top:8px;">← 返回</button>
