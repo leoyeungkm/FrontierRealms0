@@ -96,19 +96,24 @@ export function initIntro(opts = {}) {
       const x = Math.round(cx + Math.cos(a) * R), y = Math.round(cy + Math.sin(a) * R);
       const col = '#' + n.color.toString(16).padStart(6, '0');
       const mine = n.id === myId;
-      lines += `<line x1="${x}" y1="${y}" x2="${cx}" y2="${cy}" stroke="${col}" stroke-width="${mine ? 2.5 : 1}" opacity="${mine ? 0.85 : 0.25}"/>`;
-      nodes += `<circle cx="${x}" cy="${y}" r="${mine ? 13 : 9}" fill="${col}" opacity="${mine ? 1 : 0.5}" ${mine ? 'stroke="#fff" stroke-width="2"' : ''}/>`
-            +  `<text class="map-nation-label" x="${x}" y="${y + (y < cy ? -15 : 21)}">${n.name.split(' ')[1]}</text>`;
+      // 進軍路線：墨痕虛線；效忠國為實線並染戰火橙
+      lines += `<line x1="${x}" y1="${y}" x2="${cx}" y2="${cy}" stroke="${mine ? '#c2521e' : '#6b5536'}" stroke-width="${mine ? 2.5 : 1}" stroke-dasharray="${mine ? '0' : '3 4'}" opacity="${mine ? 0.9 : 0.5}"/>`;
+      // 蠟封紋章：王國色封蠟 + 墨色封緣；效忠國加鎏金外環
+      nodes += (mine ? `<circle cx="${x}" cy="${y}" r="16" fill="none" stroke="#cf9a2f" stroke-width="2"/>` : '')
+            +  `<circle cx="${x}" cy="${y}" r="${mine ? 12 : 9}" fill="${col}" stroke="#2c2114" stroke-width="1.5"/>`
+            +  `<text class="map-nation-label" x="${x}" y="${y + (y < cy ? -15 : 22)}">${n.name.split(' ')[1]}</text>`;
     });
     return `<svg viewBox="0 0 360 296">
-      <ellipse cx="${cx}" cy="${cy}" rx="140" ry="108" fill="#152340" stroke="#2c466e" stroke-width="1"/>
-      <ellipse cx="${cx}" cy="${cy}" rx="92" ry="70" fill="#1a2d4e" opacity="0.6"/>
+      <!-- 墨繪大陸：雙線海岸 -->
+      <ellipse cx="${cx}" cy="${cy}" rx="142" ry="110" fill="none" stroke="#5a4326" stroke-width="2.5" opacity="0.5"/>
+      <ellipse cx="${cx}" cy="${cy}" rx="135" ry="103" fill="rgba(90,67,38,0.13)" stroke="#5a4326" stroke-width="1" opacity="0.7"/>
       ${lines}
       <g id="map-center" class="map-front">
-        <circle cx="${cx}" cy="${cy}" r="46" fill="none" stroke="#7fd0ff" stroke-width="2" opacity="0.55" style="animation:bfpulse 1.8s infinite"/>
-        <circle cx="${cx}" cy="${cy}" r="40" fill="#0c1730" stroke="#5a8fd8" stroke-width="1.5"/>
+        <circle cx="${cx}" cy="${cy}" r="46" fill="none" stroke="#c2521e" stroke-width="2.5" opacity="0.6" style="animation:bfpulse 1.8s infinite"/>
+        <circle cx="${cx}" cy="${cy}" r="39" fill="#3a2410" stroke="#9a3713" stroke-width="2"/>
+        <circle cx="${cx}" cy="${cy}" r="39" fill="#c2521e" opacity="0.13"/>
         <text class="map-center-count" id="map-count" x="${cx}" y="${cy - 1}">…</text>
-        <text class="map-center-sub" x="${cx}" y="${cy + 15}">ECETIA 戰場</text>
+        <text class="map-center-sub" x="${cx}" y="${cy + 15}">ECETIA</text>
       </g>
       ${nodes}
     </svg>`;
