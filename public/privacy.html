@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>隱私權政策 — Frontier Realms 0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Oswald:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --ink:#241a0f; --sepia:#6b5536; --ember:#c2521e; --vellum:#d8c6a0; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #100b06; color: #2c2114;
+    font-family: 'Oswald', 'Segoe UI', sans-serif; line-height: 1.7;
+    display: flex; justify-content: center; padding: 40px 16px;
+  }
+  .doc {
+    width: 760px; max-width: 100%; background:
+      radial-gradient(120% 60% at 50% -5%, rgba(255,250,235,0.5) 0%, rgba(255,250,235,0) 40%),
+      linear-gradient(168deg, #ddcca4, #c7b083);
+    border: 1px solid var(--sepia); border-radius: 4px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6), inset 0 0 60px rgba(90,64,32,0.3);
+    padding: 48px 54px;
+  }
+  h1 { font-family: 'Cinzel', serif; font-weight: 900; font-size: 30px; letter-spacing: 2px; color: var(--ink); margin: 0 0 4px; }
+  .eyebrow { font-size: 12px; letter-spacing: 3px; text-transform: uppercase; color: var(--ember); margin-bottom: 18px; }
+  .updated { font-size: 12px; color: var(--sepia); margin-bottom: 28px; }
+  h2 { font-family: 'Cinzel', serif; font-size: 18px; color: var(--ink); margin: 28px 0 8px; border-bottom: 1px solid rgba(107,85,54,0.4); padding-bottom: 5px; }
+  p, li { font-size: 15px; color: #33271a; }
+  ul { padding-left: 22px; }
+  a { color: var(--ember); }
+  .back { display: inline-block; margin-top: 32px; font-size: 13px; letter-spacing: 1px; color: var(--sepia); text-decoration: none; }
+</style>
+</head>
+<body>
+<main class="doc">
+  <div class="eyebrow">Frontier Realms 0</div>
+  <h1>隱私權政策</h1>
+  <div class="updated">最後更新：2026 年 6 月</div>
+
+  <p>Frontier Realms 0（下稱「本遊戲」）是一款建立於 Sui 區塊鏈的 FEZ 風格多人對戰遊戲。我們的核心原則是：盡可能不蒐集個人資料。本政策說明在你使用本遊戲時，哪些資料會被處理。</p>
+
+  <h2>登入與身分</h2>
+  <ul>
+    <li><b>Google 登入（zkLogin）</b>：當你選擇用 Google 登入時，本遊戲透過 OpenID Connect 取得一次性的 ID Token，僅用於<b>在你的瀏覽器本機端</b>推導出一個 Sui 區塊鏈地址（zkLogin）。我們<b>不會</b>取得或儲存你的姓名、電子郵件或個人檔案，也不會將 Google 資料傳送到我們的伺服器。</li>
+    <li><b>錢包登入</b>：若使用 Sui 錢包，我們僅讀取你授權的公開錢包地址，用於顯示與驗證你持有的遊戲資產。</li>
+  </ul>
+
+  <h2>區塊鏈資料</h2>
+  <ul>
+    <li>你鑄造的外觀 NFT、其圖片與設定，會儲存在 <b>Sui 區塊鏈</b>與 <b>Walrus 去中心化儲存</b>上。依區塊鏈本質，這些資料是<b>公開且不可竄改</b>的。</li>
+    <li>遊戲僅在測試網（testnet）運行，鏈上虛擬物品無貨幣價值。</li>
+  </ul>
+
+  <h2>我們不做的事</h2>
+  <ul>
+    <li>不販售或分享你的個人資料給第三方。</li>
+    <li>不用於廣告或跨站追蹤。</li>
+    <li>不在伺服器端建立可識別個人的帳號檔案。</li>
+  </ul>
+
+  <h2>本機儲存</h2>
+  <p>本遊戲會在你的瀏覽器使用 localStorage / sessionStorage 保存設定（例如外觀選擇、登入工作階段），這些資料留在你的裝置上。</p>
+
+  <h2>第三方服務</h2>
+  <p>本遊戲使用 Google Sign-In、Sui 區塊鏈節點、Walrus 儲存節點，以及 Sui zkLogin 證明服務。這些服務各自的資料處理依其政策辦理。</p>
+
+  <h2>聯絡我們</h2>
+  <p>對本政策有任何疑問，請聯絡：<a href="mailto:leoyeungkm@gggamer.xyz">leoyeungkm@gggamer.xyz</a></p>
+
+  <a class="back" href="/">← 返回遊戲</a>
+</main>
+</body>
+</html>
