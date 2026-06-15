@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 
 // ─── Network ─────────────────────────────────────────────────
-export const SERVER_URL = 'ws://localhost:2567';
+// 部署時設 VITE_SERVER_URL（例如 wss://你的server.onrender.com）；
+// 未設則連本機，連不到會優雅降級為單機（打假人 + 開場/Walrus/zkLogin 照常）
+export const SERVER_URL = (import.meta.env && import.meta.env.VITE_SERVER_URL) || 'ws://localhost:2567';
 export const ROOM_NAME  = 'my_room';
 
 // ─── Movement（FEZ_Movement_Hitstun.md §3）──────────────────

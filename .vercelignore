@@ -1,0 +1,7 @@
+# 只部署 client（根目錄 Vite）；server / 合約 / 工具不需上 Vercel
+server/
+sui/
+scripts/
+node_modules/
+sui.exe
+*.log
