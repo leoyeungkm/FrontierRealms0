@@ -10,7 +10,7 @@ import {
 
 const ENV = (k, d) => (import.meta.env && import.meta.env[k]) || d;
 const GOOGLE_CLIENT_ID = ENV('VITE_GOOGLE_CLIENT_ID', '');
-const PROVER = ENV('VITE_ZKLOGIN_PROVER', 'https://prover.testnet.sui.io/v1');
+const PROVER = ENV('VITE_ZKLOGIN_PROVER', 'https://prover-dev.mystenlabs.com/v1');
 const SS = sessionStorage, LS = localStorage;
 
 export function zkEnabled() { return GOOGLE_CLIENT_ID.length > 10; }

@@ -210,6 +210,51 @@
     .dbg-btn:hover { background: #334; color: #fff; }
     .q-btn.q-on { background: #3a5a2a; border-color: #7fc35a; color: #cfff9a; }
 
+    /* ── 開場登入 / 選國 ── */
+    #intro-screen {
+      position: fixed; inset: 0; z-index: 500; display: flex;
+      align-items: center; justify-content: center;
+      background: radial-gradient(ellipse at 50% 35%, rgba(20,28,48,0.82) 0%, rgba(6,8,16,0.94) 80%);
+      backdrop-filter: blur(3px);
+    }
+    #intro-card {
+      width: 420px; max-width: 92vw; max-height: 92vh; overflow-y: auto;
+      background: rgba(10,12,22,0.92); border: 1px solid #2c3a5a; border-radius: 14px;
+      padding: 26px 30px; text-align: center; color: #cdd6e6;
+      box-shadow: 0 12px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+    #intro-title { font-size: 30px; font-weight: 800; letter-spacing: 3px; color: #eaf2ff; text-shadow: 0 0 24px rgba(90,150,255,0.5); }
+    #intro-title span { color: #7fd0ff; }
+    #intro-sub { font-size: 12px; color: #8794ad; margin: 6px 0 18px; letter-spacing: 1px; }
+    .intro-label { text-align: left; font-size: 11px; color: #6f7d96; letter-spacing: 2px; margin: 16px 0 6px; }
+    #intro-login { display: flex; flex-direction: column; gap: 7px; }
+    .intro-btn {
+      padding: 10px; border-radius: 8px; border: 1px solid #3a4a6a; cursor: pointer;
+      background: #1b2540; color: #dce6f7; font-size: 14px; transition: all .15s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .intro-btn:hover { background: #25335a; border-color: #5a7fd0; }
+    .intro-btn.intro-ghost { background: transparent; color: #8794ad; border-color: #2c3a5a; }
+    .intro-tag { font-size: 10px; background: #2a6a4a; color: #aef0c8; padding: 1px 6px; border-radius: 4px; }
+    #intro-status { font-size: 11px; color: #8794ad; margin-top: 8px; min-height: 16px; }
+    #intro-status.ok { color: #8fe0a8; }
+    #intro-nations { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+    .nation-btn {
+      padding: 9px 4px; border-radius: 8px; cursor: pointer; border: 2px solid #2c3a5a;
+      background: #141c30; color: #cdd6e6; font-size: 12px; transition: all .12s;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+    }
+    .nation-btn:hover { border-color: #5a7fd0; }
+    .nation-btn.sel { border-color: #fff; box-shadow: 0 0 12px var(--nc); }
+    .nation-dot { width: 18px; height: 18px; border-radius: 50%; background: var(--nc); }
+    #intro-enter {
+      width: 100%; margin-top: 20px; padding: 13px; border-radius: 9px; border: none; cursor: pointer;
+      background: linear-gradient(90deg,#2e6a3a,#3f8a4f); color: #fff; font-size: 16px; font-weight: 700; letter-spacing: 2px;
+    }
+    #intro-enter:hover:not(:disabled) { filter: brightness(1.15); }
+    #intro-enter:disabled { background: #2a3146; color: #6f7d96; cursor: not-allowed; }
+    #intro-hint { font-size: 10px; color: #5b6884; margin-top: 10px; }
+
     /* ── 角色外觀面板（O）── */
     #appearance-panel {
       display: none; position: fixed; top: 12px; right: 16px; z-index: 300;
@@ -251,6 +296,29 @@
 </head>
 <body>
   <canvas id="canvas"></canvas>
+
+  <!-- 開場：登入 + 選國（Sui Overflow：zkLogin / 錢包 / 訪客）-->
+  <div id="intro-screen">
+    <div id="intro-card">
+      <div id="intro-title">FRONTIER REALMS <span>0</span></div>
+      <div id="intro-sub">FEZ 風格・國對戰・建立於 Sui · Walrus</div>
+
+      <div class="intro-label">① 登入</div>
+      <div id="intro-login">
+        <button class="intro-btn" id="intro-google">用 Google 登入<span class="intro-tag">zkLogin</span></button>
+        <button class="intro-btn" id="intro-wallet">連接 Sui 錢包</button>
+        <button class="intro-btn intro-ghost" id="intro-guest">以訪客進入</button>
+      </div>
+      <div id="intro-status">未登入 — 可用訪客身分遊玩，登入後外觀/資產上鏈</div>
+
+      <div class="intro-label">② 選擇所屬國</div>
+      <div id="intro-nations"></div>
+
+      <button id="intro-enter" disabled>請先選擇所屬國</button>
+      <div id="intro-hint">登入需在外觀面板（O）操作上鏈資產；訪客可先試玩</div>
+    </div>
+  </div>
+
   <div id="hud">
     <!-- Status bars -->
     <div id="bars-container">

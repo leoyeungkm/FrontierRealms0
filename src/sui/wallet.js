@@ -22,9 +22,9 @@ export const suiState = {
   cosmetics: [],      // 持有的 Cosmetic NFT
 };
 
-let _onChange = () => {};
-export function onSuiChange(cb) { _onChange = cb; }
-function _emit() { _onChange(suiState); }
+const _listeners = [];
+export function onSuiChange(cb) { _listeners.push(cb); }
+function _emit() { for (const cb of _listeners) { try { cb(suiState); } catch { /* noop */ } } }
 
 // ── 偵測錢包 ─────────────────────────────────────────────────
 function _findSuiWallet() {
@@ -143,16 +143,16 @@ export async function refreshCosmetics() {
 // 1. 把預覽 canvas 截圖 PNG 上傳 Walrus → 圖片 blobId
 // 2. 把完整造型設定 JSON 上傳 Walrus → 設定 blobId
 // 3. mint：NFT 只記 blobId（內容在去中心化儲存，不在我們伺服器）
-export async function mintCosmetic({ appearance, previewCanvas, name, onProgress }) {
+export async function mintCosmetic({ appearance, previewDataUrl, name, onProgress }) {
   if (!suiState.connected) throw new Error('請先連接錢包');
   const t = (appearance.tint == null) ? NO_TINT : appearance.tint;
   const rarity = rarityOf('loadout', appearance.model, appearance.tint);
 
   onProgress?.('上傳預覽圖到 Walrus…');
   let imageUrl = '';
-  if (previewCanvas) {
+  if (previewDataUrl) {
     try {
-      const imgBlob = await storeDataUrl(previewCanvas.toDataURL('image/png'));
+      const imgBlob = await storeDataUrl(previewDataUrl);
       imageUrl = blobUrl(imgBlob);
     } catch (e) { console.warn('預覽圖上傳失敗，略過：', e.message); }
   }

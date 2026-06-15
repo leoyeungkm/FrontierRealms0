@@ -2,7 +2,7 @@
 // 連接（錢包 / Google zkLogin）→ 把目前造型鑄成 NFT（預覽圖+設定存 Walrus）
 // → 我的造型 NFT（顯示 Walrus 圖、點擊從 Walrus 讀回裝備）→ 🎨 重新染色。
 // suiEnabled() 為 false（未部署合約）時整區隱藏，遊戲照常。
-import { appearance, equipLoadout, setSuiAddress } from './appearance.js';
+import { appearance, equipLoadout, setSuiAddress, capturePreviewDataURL } from './appearance.js';
 import { suiEnabled, RARITY_NAME, RARITY_COLOR } from '../sui/config.js';
 import {
   suiState, onSuiChange, initSui, connectWallet, connectZkLogin, disconnectWallet,
@@ -92,7 +92,7 @@ async function _mint() {
   btn.disabled = true; btn.textContent = '鑄造中…';
   try {
     await mintCosmetic({
-      appearance, previewCanvas: _canvas(),
+      appearance, previewDataUrl: capturePreviewDataURL(),
       name: `${appearance.model} 造型`,
       onProgress: m => { if (stat) stat.textContent = m; },
     });

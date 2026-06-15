@@ -55,6 +55,7 @@ import { createVoxelRig } from './entities/voxelCharacter.js';
 import { preloadWeapon } from './entities/riggedCharacter.js';
 import { appearance, buildAppearanceRig, initAppearanceUI, initAppearancePreview, toggleAppearancePanel, appearanceToNet, appearanceFromNet } from './ui/appearance.js';
 import { initSuiPanel } from './ui/suiPanel.js';
+import { initIntro } from './ui/intro.js';
 import { signLogin, suiState } from './sui/wallet.js';
 import {
   treeState, getSlotSkill, learnSkill, assignToSlot, setWeapon,
@@ -3074,6 +3075,18 @@ for (const [dx, dz] of [
   d.group.position.y = d.baseY;
 }
 
+// 開場「進入戰場」才真正連線（先套用所屬國旗色再連、連上後廣播外觀）
+let _enteredGame = false;
+function startGame() {
+  if (_enteredGame) return;
+  _enteredGame = true;
+  initSfx();                                 // 進入時解鎖音效（Enter 是使用者手勢）
+  rebuildPlayerAppearance('model');         // 套用所屬國染色到本地模型
+  connectToServer().catch(console.error);
+  canvas.requestPointerLock();
+}
+initIntro(startGame);   // 顯示開場（physics 載入時就能互動 / 完成 zkLogin 回跳）
+
 initPhysics().then(() => {
   // Tower module needs physics reference (for colliders)
   initTower(scene, physics, RAPIER);
@@ -3086,13 +3099,11 @@ initPhysics().then(() => {
   buildPlayerMesh();
   setSummonPlayerGroup(playerGroup);
   setCrystalPlayerRefs(playerGroup, playerWeaponGroup, _torso);
-  return connectToServer();
+  // 不自動連線：等開場畫面按「進入戰場」（startGame）
 }).catch(err => {
   setStatus('初始化失敗: ' + err.message);
   console.error(err);
-  // Fallback: still build mesh and connect without physics
   buildPlayerMesh();
   setSummonPlayerGroup(playerGroup);
   setCrystalPlayerRefs(playerGroup, playerWeaponGroup, _torso);
-  connectToServer().catch(console.error);
 });
