@@ -13,12 +13,13 @@ const NO_TINT: u32 = 0xFFFFFFFF;
 /// 一件外觀（對應遊戲 appearance 的某個 gear 欄位）
 public struct Cosmetic has key, store {
     id: UID,
-    slot: String,      // head | body | arms | legs | cape | weapon
-    variant: String,   // knight | barbarian | rogue | sword | axe | hood ...
-    tint: u32,         // 0xRRGGBB；NO_TINT = 原色
+    slot: String,        // head | body | arms | legs | cape | weapon
+    variant: String,     // knight | barbarian | rogue | sword | axe | hood ...
+    tint: u32,           // 0xRRGGBB；NO_TINT = 原色
     name: String,
-    image_url: String,
-    rarity: u8,        // 0 普通 / 1 稀有 / 2 史詩 / 3 傳說
+    image_url: String,   // Walrus 預覽圖（角色實際 render）的 aggregator URL
+    walrus_blob: String, // Walrus blobId：完整造型 loadout 設定（去中心化儲存）
+    rarity: u8,          // 0 普通 / 1 稀有 / 2 史詩 / 3 傳說
 }
 
 /// One-Time-Witness：建立 Publisher + Display
@@ -51,6 +52,7 @@ public entry fun mint(
     tint: u32,
     name: vector<u8>,
     image_url: vector<u8>,
+    walrus_blob: vector<u8>,
     rarity: u8,
     ctx: &mut TxContext,
 ) {
@@ -61,6 +63,7 @@ public entry fun mint(
         tint,
         name: string::utf8(name),
         image_url: string::utf8(image_url),
+        walrus_blob: string::utf8(walrus_blob),
         rarity,
     };
     event::emit(CosmeticMinted {
@@ -82,4 +85,5 @@ public fun slot(c: &Cosmetic): String { c.slot }
 public fun variant(c: &Cosmetic): String { c.variant }
 public fun tint(c: &Cosmetic): u32 { c.tint }
 public fun rarity(c: &Cosmetic): u8 { c.rarity }
+public fun walrus_blob(c: &Cosmetic): String { c.walrus_blob }
 public fun no_tint(): u32 { NO_TINT }

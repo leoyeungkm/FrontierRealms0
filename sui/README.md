@@ -46,9 +46,9 @@ sui client transfer --object-id <MintCap> --to <伺服器地址> --gas-budget 10
 ## 手動測試合約
 
 ```powershell
-# 鑄造一件外觀
+# 鑄造一件外觀（參數：slot variant tint name image_url walrus_blob rarity）
 sui client call --package <PKG> --module cosmetic --function mint `
-  --args "head" "knight" 4294967295 "Knight Helmet" "https://placehold.co/256" 1 `
+  --args "loadout" "knight" 4294967295 "Knight 造型" "https://aggregator.walrus-testnet.walrus.space/v1/blobs/<imgBlob>" "<cfgBlob>" 1 `
   --gas-budget 20000000
 
 # 重新染色（動態 NFT）

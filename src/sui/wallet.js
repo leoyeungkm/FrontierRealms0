@@ -5,16 +5,21 @@ import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 import { getWallets } from '@mysten/wallet-standard';
 import { SUI_NETWORK, PACKAGE_ID, COSMETIC_TYPE, suiEnabled, rarityOf, NO_TINT } from './config.js';
+import { storeBlob, storeDataUrl, blobUrl, readJson } from './walrus.js';
+import { zkEnabled, beginGoogleLogin, tryCompleteZkLogin, restoreZkSession, zkLogout } from './zklogin.js';
 
 const client = new SuiClient({ url: getFullnodeUrl(SUI_NETWORK) });
 
 export const suiState = {
   available: false,   // 有可用的 Sui 錢包
   connected: false,
+  mode: null,         // 'wallet' | 'zklogin'
   address: null,
   wallet: null,
   account: null,
-  cosmetics: [],      // 持有的 Cosmetic NFT（{ id, slot, variant, tint, name, rarity }）
+  zkSigner: null,     // zkLogin 簽署器（mode==='zklogin' 時）
+  zkEnabled: false,   // 是否設定了 Google 登入
+  cosmetics: [],      // 持有的 Cosmetic NFT
 };
 
 let _onChange = () => {};
@@ -33,6 +38,7 @@ function _findSuiWallet() {
 
 export function initSui() {
   if (!suiEnabled()) return;             // 未部署合約 → 不啟用
+  suiState.zkEnabled = zkEnabled();
   const refresh = () => {
     suiState.available = !!_findSuiWallet();
     _emit();
@@ -40,6 +46,28 @@ export function initSui() {
   refresh();
   // 錢包延遲注入（擴充功能載入時機）→ 監聽註冊事件
   try { getWallets().on('register', refresh); } catch { /* noop */ }
+  // zkLogin：處理 Google 回跳 / 還原既有 session
+  if (zkEnabled()) _initZk();
+}
+
+async function _initZk() {
+  try {
+    const signer = (await tryCompleteZkLogin(client)) || restoreZkSession(client);
+    if (signer) {
+      suiState.zkSigner = signer;
+      suiState.mode = 'zklogin';
+      suiState.address = signer.address;
+      suiState.connected = true;
+      await refreshCosmetics();
+      _emit();
+    }
+  } catch (e) { console.warn('zkLogin 還原失敗：', e.message); }
+}
+
+/** 發起 Google zkLogin（整頁跳轉，回來後 initSui 接手完成） */
+export async function connectZkLogin() {
+  if (!zkEnabled()) throw new Error('未設定 Google 登入（VITE_GOOGLE_CLIENT_ID）');
+  await beginGoogleLogin(client);
 }
 
 // ── 連線 ─────────────────────────────────────────────────────
@@ -53,6 +81,7 @@ export async function connectWallet() {
   suiState.wallet = wallet;
   suiState.account = account;
   suiState.address = account.address;
+  suiState.mode = 'wallet';
   suiState.connected = true;
   // 帳號切換 / 斷線
   try {
@@ -70,10 +99,13 @@ export async function connectWallet() {
 
 export function disconnectWallet() {
   try { suiState.wallet?.features['standard:disconnect']?.disconnect(); } catch { /* noop */ }
+  if (suiState.mode === 'zklogin') zkLogout();
   suiState.connected = false;
+  suiState.mode = null;
   suiState.address = null;
   suiState.account = null;
   suiState.wallet = null;
+  suiState.zkSigner = null;
   suiState.cosmetics = [];
   _emit();
 }
@@ -97,6 +129,8 @@ export async function refreshCosmetics() {
         id: o.data.objectId,
         slot: f.slot, variant: f.variant,
         tint: Number(f.tint), name: f.name, rarity: Number(f.rarity),
+        image: f.image_url || '',         // Walrus 預覽圖 URL
+        walrusBlob: f.walrus_blob || '',  // Walrus loadout 設定 blobId
       });
     }
     cursor = page.hasNextPage ? page.nextCursor : null;
@@ -105,21 +139,44 @@ export async function refreshCosmetics() {
   return out;
 }
 
-// ── 鑄造外觀 NFT ─────────────────────────────────────────────
-export async function mintCosmetic({ slot, variant, tint, name }) {
+// ── 鑄造造型 NFT（完整 loadout + Walrus 去中心化儲存）─────────
+// 1. 把預覽 canvas 截圖 PNG 上傳 Walrus → 圖片 blobId
+// 2. 把完整造型設定 JSON 上傳 Walrus → 設定 blobId
+// 3. mint：NFT 只記 blobId（內容在去中心化儲存，不在我們伺服器）
+export async function mintCosmetic({ appearance, previewCanvas, name, onProgress }) {
   if (!suiState.connected) throw new Error('請先連接錢包');
-  const t = (tint == null) ? NO_TINT : tint;
-  const rarity = rarityOf(slot, variant, tint);
-  const img = `https://placehold.co/256x256/${(t === NO_TINT ? 0x5a7a4e : t).toString(16).padStart(6, '0')}/ffffff?text=${encodeURIComponent(variant + ' ' + slot)}`;
+  const t = (appearance.tint == null) ? NO_TINT : appearance.tint;
+  const rarity = rarityOf('loadout', appearance.model, appearance.tint);
+
+  onProgress?.('上傳預覽圖到 Walrus…');
+  let imageUrl = '';
+  if (previewCanvas) {
+    try {
+      const imgBlob = await storeDataUrl(previewCanvas.toDataURL('image/png'));
+      imageUrl = blobUrl(imgBlob);
+    } catch (e) { console.warn('預覽圖上傳失敗，略過：', e.message); }
+  }
+
+  onProgress?.('上傳造型資料到 Walrus…');
+  // 只存外觀欄位（不含執行期鏈上狀態）
+  const cfg = {
+    model: appearance.model, head: appearance.head, body: appearance.body,
+    arms: appearance.arms, legs: appearance.legs, cape: appearance.cape,
+    tint: appearance.tint, gsSkin: appearance.gsSkin,
+  };
+  const cfgBlob = await storeBlob(JSON.stringify(cfg));
+
+  onProgress?.('鑄造 NFT（請在錢包簽名）…');
   const tx = new Transaction();
   tx.moveCall({
     target: `${PACKAGE_ID}::cosmetic::mint`,
     arguments: [
-      tx.pure.string(slot),
-      tx.pure.string(variant),
+      tx.pure.string('loadout'),
+      tx.pure.string(appearance.model),
       tx.pure.u32(t),
-      tx.pure.string(name || `${variant} ${slot}`),
-      tx.pure.string(img),
+      tx.pure.string(name || `${appearance.model} 造型`),
+      tx.pure.string(imageUrl),
+      tx.pure.string(cfgBlob),
       tx.pure.u8(rarity),
     ],
   });
@@ -127,6 +184,13 @@ export async function mintCosmetic({ slot, variant, tint, name }) {
   await refreshCosmetics();
   _emit();
   return r;
+}
+
+/** 從 Walrus 讀回造型 NFT 的完整 loadout 設定 */
+export async function loadCosmeticConfig(item) {
+  if (!item.walrusBlob) return null;
+  try { return await readJson(item.walrusBlob); }
+  catch (e) { console.warn('Walrus 讀取造型失敗：', e.message); return null; }
 }
 
 // ── 動態 NFT：重新染色 ───────────────────────────────────────
@@ -144,17 +208,22 @@ export async function recolorCosmetic(objectId, tint) {
 }
 
 // ── 簽署登入訊息（server 綁定 address，防偽造 ownership）──────
+// zkLogin 模式回傳 null → server 退而用鏈上 ownership 檢查（仍可信，見 verify.ts）
 export async function signLogin(nonce) {
   if (!suiState.connected) throw new Error('請先連接錢包');
+  if (suiState.mode === 'zklogin') return null;
   const msg = new TextEncoder().encode(`FR0 login: ${nonce}`);
   const feat = suiState.wallet.features['sui:signPersonalMessage'];
-  if (!feat) throw new Error('錢包不支援訊息簽署');
+  if (!feat) return null;
   const res = await feat.signPersonalMessage({ message: msg, account: suiState.account });
   return { address: suiState.address, signature: res.signature, nonce };
 }
 
-// ── 內部：簽署並執行交易（相容兩種 wallet feature）────────────
+// ── 內部：簽署並執行交易（錢包 / zkLogin 二擇一）──────────────
 async function _signExec(tx) {
+  if (suiState.mode === 'zklogin') {
+    return await suiState.zkSigner.signAndExecuteTransaction({ transaction: tx });
+  }
   const w = suiState.wallet, acc = suiState.account;
   const chain = `sui:${SUI_NETWORK}`;
   if (w.features['sui:signAndExecuteTransaction']) {

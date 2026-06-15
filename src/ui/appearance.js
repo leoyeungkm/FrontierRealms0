@@ -49,12 +49,15 @@ export const appearance = {
   suiAddress: null,    // 已連接的 Sui 地址（server 綁定 / 驗證用）
 };
 
-/** 從持有的 NFT 裝備外觀（slot 變體 + 全域染色），記錄 objectId 供 server 驗證 */
-export function equipNftCosmetic(item) {
-  appearance[item.slot] = item.variant;
-  if (item.tint != null && item.tint !== 0xFFFFFFFF) appearance.tint = item.tint;
-  appearance.chainItems = { ...appearance.chainItems, [item.slot]: item.id };
-  _changed('gear');
+/** 裝備一件「造型 NFT」：套用從 Walrus 讀回的完整 loadout，記錄 objectId 供 server 驗證 */
+export function equipLoadout(cfg, objectId) {
+  if (!cfg) return;
+  for (const k of ['model', 'head', 'body', 'arms', 'legs', 'cape', 'gsSkin']) {
+    if (cfg[k] !== undefined) appearance[k] = cfg[k];
+  }
+  appearance.tint = (cfg.tint === undefined) ? null : cfg.tint;
+  appearance.chainItems = { loadout: objectId };   // 整套來自此 NFT（server 驗證 ownership）
+  _changed('model');   // 換整套 → 重建模型
 }
 
 /** 設定已連接的 Sui 地址（main.js 在連接成功後呼叫；觸發廣播） */
@@ -247,6 +250,11 @@ function _changed(kind = 'gear') {
   _onChange?.(kind);   // 遊戲內角色即時重建/換武器 + 廣播
 }
 
+/** 任何手動更動 → 目前造型已非那件 NFT 的原樣，解除鏈上來源標記 */
+function _clearChain() {
+  if (Object.keys(appearance.chainItems).length) appearance.chainItems = {};
+}
+
 /** 武器皮膚變更：預覽只重掛武器，不重建模型 */
 async function _refreshPreviewWeapon() {
   if (!_pv?.model || !_pvDeps?.getWeaponTemplate || !_pvDeps?.getWeapon) return;
@@ -276,21 +284,19 @@ export function initAppearanceUI(onChange) {
       // 換身形 = 套整組該族 gear（再逐件微調）
       appearance.model = b.dataset.m;
       Object.assign(appearance, GEAR_DEFAULT[appearance.model]);
+      _clearChain();
       _changed('model');
     }));
   document.querySelectorAll('.ap-part').forEach(b =>
     b.addEventListener('click', () => {
       appearance[b.dataset.part] = b.dataset.v;
-      // 改用免費本地部件 → 解除該 slot 的鏈上 NFT 來源
-      if (appearance.chainItems[b.dataset.part]) {
-        const { [b.dataset.part]: _, ...rest } = appearance.chainItems;
-        appearance.chainItems = rest;
-      }
+      _clearChain();   // 手動換件 → 不再是原 NFT
       _changed('gear');
     }));
   document.querySelectorAll('.ap-tint').forEach(b =>
     b.addEventListener('click', () => {
       appearance.tint = b.dataset.t === 'null' ? null : Number(b.dataset.t);
+      _clearChain();
       _changed('tint');
     }));
   document.querySelectorAll('.ap-gs').forEach(b =>
