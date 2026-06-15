@@ -46,7 +46,7 @@ fun init(otw: COSMETIC, ctx: &mut TxContext) {
 }
 
 /// 公開鑄造（Hackathon demo：玩家自助鑄造一件外觀並收到自己錢包）
-public entry fun mint(
+public fun mint(
     slot: vector<u8>,
     variant: vector<u8>,
     tint: u32,
@@ -76,7 +76,7 @@ public entry fun mint(
 }
 
 /// 動態 NFT：重新染色 —— 你的裝備會隨你改變（展示 Sui 可變物件）
-public entry fun recolor(c: &mut Cosmetic, tint: u32) {
+public fun recolor(c: &mut Cosmetic, tint: u32) {
     c.tint = tint;
 }
 

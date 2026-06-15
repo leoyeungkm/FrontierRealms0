@@ -9,9 +9,12 @@ npm-debug.log*
 .env.local
 .env.*.local
 
-# Sui 部署輸出
+# Sui 部署輸出 / 工具
 sui/publish-output.json
+sui/publish-err.txt
 sui/build/
+sui.exe
+*.exe
 
 # 編輯器 / 系統
 .vscode/

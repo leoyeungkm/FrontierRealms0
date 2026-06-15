@@ -42,7 +42,7 @@ fun init(otw: ACHIEVEMENT, ctx: &mut TxContext) {
 }
 
 /// 頒發成就（需要 MintCap = 只有伺服器能呼叫）。soulbound：玩家收到後無法再轉出。
-public entry fun award(
+public fun award(
     _cap: &MintCap,
     recipient: address,
     kind: vector<u8>,

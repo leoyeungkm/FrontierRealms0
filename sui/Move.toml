@@ -3,9 +3,8 @@ name = "fr0"
 edition = "2024.beta"
 # FR0 — FEZ 風格多人對戰遊戲的鏈上資產（Sui Overflow 2026）
 # cosmetic：可交易的外觀 NFT；achievement：伺服器頒發的 soulbound 戰績徽章
-
-[dependencies]
-Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/testnet" }
+# 註：不顯式宣告 Sui 框架依賴 → CLI 自動帶入內建框架（免 git 下載）
 
 [addresses]
 fr0 = "0x0"
+sui = "0x2"

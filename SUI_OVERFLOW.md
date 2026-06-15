@@ -4,6 +4,16 @@
 
 **主賽道：Walrus**（去中心化儲存 / 資料可用性）· 搭配 zkLogin 降低上手門檻
 
+## 已部署（Sui Testnet）
+
+| 物件 | ID |
+|---|---|
+| **Package** | `0xa0089188ec828755a5026a37d5fe839487168eed97e74854358e580a0f595392` |
+| MintCap（成就頒發） | `0x10e19de6a94c33a6bc26c346538cbda93a7fed5da307a7d26137541b9fbc7964` |
+| 範例 Cosmetic NFT | `0xd85c84aa3ff4a81177dda6faad3d0f5a3282fea5724aff1418b5949482cc678d` |
+
+瀏覽器：`https://testnet.suivision.xyz/package/0xa0089188ec828755a5026a37d5fe839487168eed97e74854358e580a0f595392`
+
 ---
 
 ## 一句話

@@ -11,6 +11,11 @@ FEZ 風格多人對戰遊戲 **FR0** 的 Sui 鏈上模組（Sui Overflow 2026）
 
 `Cosmetic` 對應遊戲的裝備外觀系統（頭/身/手/腳/披風 + 染色）：`slot`、`variant`、`tint`、`rarity`，並實作 `sui::display` 讓錢包/瀏覽器正確顯示。
 
+## 已部署（Sui Testnet）
+
+- **Package**：`0xa0089188ec828755a5026a37d5fe839487168eed97e74854358e580a0f595392`
+- **MintCap**：`0x10e19de6a94c33a6bc26c346538cbda93a7fed5da307a7d26137541b9fbc7964`
+
 ## 部署（testnet）
 
 ```powershell

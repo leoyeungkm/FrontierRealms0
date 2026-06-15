@@ -2,10 +2,11 @@
 // 部署合約後把 scripts/deploy 輸出的 packageId 填進來。
 // PACKAGE_ID 為空字串 → 鏈上功能自動停用，遊戲照常單機/連線跑（優雅降級）。
 
-// 部署後可填這裡，或設 .env 的 VITE_FR0_PACKAGE_ID（env 優先，不用改原始碼）
+// .env 的 VITE_FR0_PACKAGE_ID 優先；否則用已部署的 testnet 合約（下方預設）
 const ENV = (import.meta.env && import.meta.env.VITE_FR0_PACKAGE_ID) || '';
 export const SUI_NETWORK = (import.meta.env && import.meta.env.VITE_FR0_SUI_NETWORK) || 'testnet';
-export const PACKAGE_ID = ENV || '';   // ← 或在此硬填 '0xabc...'
+// 已部署：Sui testnet（Sui Overflow 2026）
+export const PACKAGE_ID = ENV || '0xa0089188ec828755a5026a37d5fe839487168eed97e74854358e580a0f595392';
 
 export const COSMETIC_TYPE = () => (PACKAGE_ID ? `${PACKAGE_ID}::cosmetic::Cosmetic` : '');
 export const suiEnabled = () => PACKAGE_ID.length > 2;
