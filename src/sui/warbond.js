@@ -6,10 +6,15 @@ import { suiClient, suiState, executeTx } from './wallet.js';
 
 const MIST = 1_000_000_000;
 
+// 當前押注場（server 開新場時用 setActiveWar 切換）
+let _activeWar = WAR_ID;
+export function setActiveWar(id) { if (id) _activeWar = id; }
+export function activeWar() { return _activeWar; }
+
 /** 讀 War 狀態：{ open, settled, winner, pools:[u64], total } */
-export async function getWar() {
-  if (!suiEnabled() || !WAR_ID) return null;
-  const o = await suiClient.getObject({ id: WAR_ID, options: { showContent: true } });
+export async function getWar(warId = _activeWar) {
+  if (!suiEnabled() || !warId) return null;
+  const o = await suiClient.getObject({ id: warId, options: { showContent: true } });
   const f = o.data?.content?.fields;
   if (!f) return null;
   const pools = (f.pools || []).map(Number);
@@ -20,8 +25,8 @@ export async function getWar() {
   };
 }
 
-/** 我持有、屬於當前 War 的債券：[{ id, nation, amount }] */
-export async function getMyBonds() {
+/** 我持有的債券（warId 過濾，預設當前場）：[{ id, nation, amount, war }] */
+export async function getMyBonds(warId = _activeWar) {
   if (!suiState.address) return [];
   const out = [];
   let cursor = null;
@@ -33,7 +38,7 @@ export async function getMyBonds() {
     });
     for (const o of page.data) {
       const f = o.data?.content?.fields;
-      if (f && f.war === WAR_ID) out.push({ id: o.data.objectId, nation: Number(f.nation), amount: Number(f.amount) });
+      if (f && (!warId || f.war === warId)) out.push({ id: o.data.objectId, nation: Number(f.nation), amount: Number(f.amount), war: f.war });
     }
     cursor = page.hasNextPage ? page.nextCursor : null;
   } while (cursor);
@@ -46,15 +51,15 @@ export async function bet(nation, amountSui) {
   const amount = Math.round(amountSui * MIST);
   const tx = new Transaction();
   const [coin] = tx.splitCoins(tx.gas, [amount]);
-  tx.moveCall({ target: `${PACKAGE_ID}::warbond::bet`, arguments: [tx.object(WAR_ID), tx.pure.u8(nation), coin] });
+  tx.moveCall({ target: `${PACKAGE_ID}::warbond::bet`, arguments: [tx.object(_activeWar), tx.pure.u8(nation), coin] });
   return executeTx(tx);
 }
 
-/** 領彩：用押中的債券換 SUI */
-export async function claimBond(bondId) {
+/** 領彩：用押中的債券換 SUI（warId 預設當前場；領舊場要帶該場 id） */
+export async function claimBond(bondId, warId = _activeWar) {
   if (!suiState.connected) throw new Error('請先登入');
   const tx = new Transaction();
-  tx.moveCall({ target: `${PACKAGE_ID}::warbond::claim_to_sender`, arguments: [tx.object(WAR_ID), tx.object(bondId)] });
+  tx.moveCall({ target: `${PACKAGE_ID}::warbond::claim_to_sender`, arguments: [tx.object(warId), tx.object(bondId)] });
   return executeTx(tx);
 }
 

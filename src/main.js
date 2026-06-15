@@ -57,6 +57,7 @@ import { appearance, buildAppearanceRig, initAppearanceUI, initAppearancePreview
 import { initSuiPanel } from './ui/suiPanel.js';
 import { initIntro } from './ui/intro.js';
 import { signLogin, suiState } from './sui/wallet.js';
+import { setActiveWar, getMyBonds, claimBond } from './sui/warbond.js';
 import {
   treeState, getSlotSkill, learnSkill, assignToSlot, setWeapon,
   updateSkillCDs, startCD, getCDTimer,
@@ -2198,6 +2199,18 @@ async function connectToServer() {
         }
       }
     }
+  });
+  // War Bonds：server 自動結算 → 切新場 + 自動兌付彩金
+  room.onMessage('warNew', id => setActiveWar(String(id)));
+  room.onMessage('warSettled', async raw => {
+    const settledWar = String(raw[0]); const winner = Number(raw[1]);
+    showAnnounce(`⚔ 戰爭結算：${winner === 0 ? 'Minas United' : 'Calaadia'} 勝！`);
+    if (!suiState.connected) return;
+    try {
+      const winBonds = (await getMyBonds(settledWar)).filter(b => b.nation === winner);
+      for (const b of winBonds) await claimBond(b.id, settledWar);
+      if (winBonds.length) showAnnounce('🪙 戰爭債券彩金已自動兌付！');
+    } catch (e) { console.warn('claim failed', e); }
   });
   room.onMessage('playerLeft',   data => { removeRemotePlayer(String(data)); });
   room.onMessage('existingPlayers', data => {
