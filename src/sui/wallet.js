@@ -239,4 +239,7 @@ async function _signExec(tx) {
   });
 }
 
+/** 對外：用目前登入模式（錢包 / zkLogin）簽署並執行交易 */
+export async function executeTx(tx) { return _signExec(tx); }
+
 export { client as suiClient };

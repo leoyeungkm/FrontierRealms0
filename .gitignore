@@ -12,6 +12,8 @@ npm-debug.log*
 # Sui 部署輸出 / 工具
 sui/publish-output.json
 sui/publish-err.txt
+sui/*.json
+sui/*-err.txt
 sui/build/
 sui.exe
 *.exe

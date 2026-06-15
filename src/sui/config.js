@@ -5,8 +5,10 @@
 // .env 的 VITE_FR0_PACKAGE_ID 優先；否則用已部署的 testnet 合約（下方預設）
 const ENV = (import.meta.env && import.meta.env.VITE_FR0_PACKAGE_ID) || '';
 export const SUI_NETWORK = (import.meta.env && import.meta.env.VITE_FR0_SUI_NETWORK) || 'testnet';
-// 已部署：Sui testnet（Sui Overflow 2026）
-export const PACKAGE_ID = ENV || '0xa0089188ec828755a5026a37d5fe839487168eed97e74854358e580a0f595392';
+// 已部署：Sui testnet（cosmetic + achievement + warbond 同包）
+export const PACKAGE_ID = ENV || '0x571d8da4e921d2f620b544a7ae8d7625dddb4961741499e70a87ddeb25a7d1a1';
+// War Bonds：當前開放押注的 War 共享物件
+export const WAR_ID = (import.meta.env && import.meta.env.VITE_FR0_WAR_ID) || '0x460b807cfe1b6ccd513408e3b0443fb3f6ce9679721363e02d33d6d1dea58262';
 
 export const COSMETIC_TYPE = () => (PACKAGE_ID ? `${PACKAGE_ID}::cosmetic::Cosmetic` : '');
 export const suiEnabled = () => PACKAGE_ID.length > 2;

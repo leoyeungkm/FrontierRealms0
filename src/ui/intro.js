@@ -5,14 +5,15 @@ import { suiState, onSuiChange, connectWallet, connectZkLogin } from '../sui/wal
 import { suiEnabled } from '../sui/config.js';
 import { appearance, setSuiAddress } from './appearance.js';
 import { t, applyI18n, toggleLang, onLangChange } from './i18n.js';
+import { getWar, getMyBonds, bet, claimBond, oddsFor, toSui } from '../sui/warbond.js';
 
-// 五王國（宣誓效忠 → 服裝旗色 allegiance），色彩同 fr0.world
+const BET_SUI = 0.1;   // demo 固定下注額
+
+// 兩大王國（對應遊戲藍/紅兩隊；宣誓效忠 → 服裝旗色 + War Bonds 押注對象）
+// 索引固定：0 = Minas（藍/隊1）、1 = Calaadia（紅/隊2）——與合約 nation 索引一致
 export const NATIONS = [
-  { id: 'minas',     name: 'Minas United', short: 'Minas',     color: 0x4f86d8 }, // 藍
-  { id: 'ledell',    name: 'Ledell',       short: 'Ledell',    color: 0x57b04a }, // 綠
-  { id: 'calaadia',  name: 'Calaadia',     short: 'Calaadia',  color: 0xd5494a }, // 紅
-  { id: 'dieudonne', name: 'Dieudonne',    short: 'Dieudonne', color: 0x9a6ad8 }, // 紫
-  { id: 'phoenix',   name: 'Phoenix',      short: 'Phoenix',   color: 0xe0b33a }, // 金
+  { id: 'minas',    name: 'Minas United', short: 'Minas',    color: 0x4f86d8 }, // 藍
+  { id: 'calaadia', name: 'Calaadia',     short: 'Calaadia', color: 0xd5494a }, // 紅
 ];
 export let selectedNation = null;
 
@@ -37,7 +38,7 @@ export function initIntro(opts = {}) {
   onLangChange(() => {
     _renderStatus();
     tomap.textContent = selectedNation ? t('tomap_ready', { name: selectedNation.short }) : t('tomap_disabled');
-    if (onMap) { _renderAllegiance(); _renderEnter(); }
+    if (onMap) { _renderAllegiance(); _renderEnter(); _renderWarBonds(); }
   });
 
   // ── 宣誓王國 ──
@@ -91,6 +92,7 @@ export function initIntro(opts = {}) {
     document.getElementById('intro-map').innerHTML = _buildMap();
     document.getElementById('map-center')?.addEventListener('click', _enter);
     _renderAllegiance();
+    _renderWarBonds();
     _refreshCount();
     _pollTimer = setInterval(_refreshCount, 4000);
   });
@@ -111,13 +113,56 @@ export function initIntro(opts = {}) {
     enter.textContent = _online ? t('enter_online', { n: _lastTotal }) : t('enter_offline');
   }
 
+  // ── War Bonds（押注本場勝國）──
+  async function _renderWarBonds() {
+    const box = document.getElementById('intro-warbonds');
+    if (!box) return;
+    if (!suiEnabled()) { box.innerHTML = ''; return; }
+    if (!suiState.connected) { box.innerHTML = `<div class="wb-note">${t('wb_login')}</div>`; return; }
+    let war, bonds;
+    try { war = await getWar(); bonds = await getMyBonds(); } catch { box.innerHTML = ''; return; }
+    if (!war) { box.innerHTML = ''; return; }
+
+    let html = `<div class="wb-title">${t('wb_title')}</div>`;
+    NATIONS.forEach((n, i) => {
+      const pool = toSui(war.pools[i] || 0).toFixed(2);
+      const odds = oddsFor(war, i);
+      html += `<div class="wb-row" style="--nc:${hex(n.color)}">
+        <span class="wb-name">${n.short}</span>
+        <span class="wb-pool">${t('wb_pool', { sui: pool, odds: odds ? odds.toFixed(2) : '—' })}</span>
+        ${war.open ? `<button class="wb-bet" data-n="${i}">${t('wb_bet', { amt: BET_SUI + ' SUI' })}</button>` : ''}
+      </div>`;
+    });
+    if (war.settled) {
+      html += `<div class="wb-note">${t('wb_settled', { name: NATIONS[war.winner]?.name || '—' })}</div>`;
+      if (bonds.some(b => b.nation === war.winner)) html += `<button class="wb-claim">${t('wb_claim')}</button>`;
+    } else if (bonds.length) {
+      html += `<div class="wb-note">🎟 ${bonds.map(b => `${NATIONS[b.nation]?.short} ${toSui(b.amount).toFixed(2)}`).join(' · ')}</div>`;
+    }
+    box.innerHTML = html;
+    box.querySelectorAll('.wb-bet').forEach(b => b.addEventListener('click', () => _doBet(Number(b.dataset.n), b)));
+    box.querySelector('.wb-claim')?.addEventListener('click', () => _doClaim(bonds.filter(x => x.nation === war.winner)));
+  }
+  async function _doBet(nation, btn) {
+    btn.disabled = true; btn.textContent = '…';
+    try { await bet(nation, BET_SUI); } catch (e) { alert('押注失敗：' + e.message); }
+    _renderWarBonds();
+  }
+  async function _doClaim(winBonds) {
+    try { for (const b of winBonds) await claimBond(b.id); alert(t('wb_claimed')); }
+    catch (e) { alert('領彩失敗：' + e.message); }
+    _renderWarBonds();
+  }
+
   // ── 世界地圖 SVG（暗色星圖：中央 Aeloria 戰核 + 五王國環繞）──
   function _buildMap() {
-    const cx = 180, cy = 148, R = 106;
+    const cx = 180, cy = 148, R = 110;
     const myId = selectedNation?.id;
+    const N = NATIONS.length;
     let lines = '', nodes = '';
     NATIONS.forEach((n, i) => {
-      const a = (-90 + i * 72) * Math.PI / 180;
+      // 兩國 → 左右對峙；多國 → 環繞
+      const a = Math.PI + i * (2 * Math.PI / N);
       const x = Math.round(cx + Math.cos(a) * R), y = Math.round(cy + Math.sin(a) * R);
       const col = hex(n.color), mine = n.id === myId;
       lines += `<line x1="${x}" y1="${y}" x2="${cx}" y2="${cy}" stroke="${col}" stroke-width="${mine ? 2.5 : 1}" stroke-dasharray="${mine ? '0' : '3 5'}" opacity="${mine ? 0.95 : 0.35}"/>`;
