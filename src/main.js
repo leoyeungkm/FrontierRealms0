@@ -57,7 +57,7 @@ import { appearance, buildAppearanceRig, initAppearanceUI, initAppearancePreview
 import { initSuiPanel } from './ui/suiPanel.js';
 import { initIntro } from './ui/intro.js';
 import { signLogin, suiState } from './sui/wallet.js';
-import { setActiveWar, getMyBonds, claimBond } from './sui/warbond.js';
+import { setActiveMarket, getMarket, getMyShares, redeem } from './sui/market.js';
 import {
   treeState, getSlotSkill, learnSkill, assignToSlot, setWeapon,
   updateSkillCDs, startCD, getCDTimer,
@@ -2200,17 +2200,17 @@ async function connectToServer() {
       }
     }
   });
-  // War Bonds：server 自動結算 → 切新場 + 自動兌付彩金
-  room.onMessage('warNew', id => setActiveWar(String(id)));
-  room.onMessage('warSettled', async raw => {
-    const settledWar = String(raw[0]); const winner = Number(raw[1]);
+  // 預測市場：server 自動結算 → 切新市 + 自動兌付彩金
+  room.onMessage('marketNew', id => setActiveMarket(String(id)));
+  room.onMessage('marketResolved', async raw => {
+    const mktId = String(raw[0]); const winner = Number(raw[1]);
     showAnnounce(`⚔ 戰爭結算：${winner === 0 ? 'Minas United' : 'Calaadia'} 勝！`);
     if (!suiState.connected) return;
     try {
-      const winBonds = (await getMyBonds(settledWar)).filter(b => b.nation === winner);
-      for (const b of winBonds) await claimBond(b.id, settledWar);
-      if (winBonds.length) showAnnounce('🪙 戰爭債券彩金已自動兌付！');
-    } catch (e) { console.warn('claim failed', e); }
+      const mkt = await getMarket(mktId);
+      const mine = await getMyShares(mkt);
+      if ((winner === 0 ? mine.a : mine.b) > 0) { await redeem(mktId); showAnnounce('🪙 預測市場彩金已兌付！'); }
+    } catch (e) { console.warn('redeem failed', e); }
   });
   room.onMessage('playerLeft',   data => { removeRemotePlayer(String(data)); });
   room.onMessage('existingPlayers', data => {

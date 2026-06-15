@@ -5,10 +5,10 @@
 // .env 的 VITE_FR0_PACKAGE_ID 優先；否則用已部署的 testnet 合約（下方預設）
 const ENV = (import.meta.env && import.meta.env.VITE_FR0_PACKAGE_ID) || '';
 export const SUI_NETWORK = (import.meta.env && import.meta.env.VITE_FR0_SUI_NETWORK) || 'testnet';
-// 已部署：Sui testnet（cosmetic + achievement + warbond 同包）
-export const PACKAGE_ID = ENV || '0x571d8da4e921d2f620b544a7ae8d7625dddb4961741499e70a87ddeb25a7d1a1';
-// War Bonds：當前開放押注的 War 共享物件
-export const WAR_ID = (import.meta.env && import.meta.env.VITE_FR0_WAR_ID) || '0x460b807cfe1b6ccd513408e3b0443fb3f6ce9679721363e02d33d6d1dea58262';
+// 已部署：Sui testnet（cosmetic + achievement + warbond + market 同包）
+export const PACKAGE_ID = ENV || '0x1712a9d8fcb6a6325a2336156d9257fa4afc5b3b215985edf85750d53ba7d1fd';
+// 預測市場（B3 CPMM AMM）：當前可交易的 Market 共享物件
+export const MARKET_ID = (import.meta.env && import.meta.env.VITE_FR0_MARKET_ID) || '0x585a99d8d30f146a0612e4d63be52fc0a74628b16b38ee71ed912e037cefde8f';
 
 export const COSMETIC_TYPE = () => (PACKAGE_ID ? `${PACKAGE_ID}::cosmetic::Cosmetic` : '');
 export const suiEnabled = () => PACKAGE_ID.length > 2;

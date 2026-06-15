@@ -5,9 +5,9 @@ import { suiState, onSuiChange, connectWallet, connectZkLogin } from '../sui/wal
 import { suiEnabled } from '../sui/config.js';
 import { appearance, setSuiAddress } from './appearance.js';
 import { t, applyI18n, toggleLang, onLangChange } from './i18n.js';
-import { getWar, getMyBonds, bet, claimBond, oddsFor, toSui } from '../sui/warbond.js';
+import { getMarket, getMyShares, buy, sell, redeem, toSui } from '../sui/market.js';
 
-const BET_SUI = 0.1;   // demo 固定下注額
+const BET_SUI = 0.1;   // demo 固定買入額
 
 // 兩大王國（對應遊戲藍/紅兩隊；宣誓效忠 → 服裝旗色 + War Bonds 押注對象）
 // 索引固定：0 = Minas（藍/隊1）、1 = Calaadia（紅/隊2）——與合約 nation 索引一致
@@ -113,44 +113,48 @@ export function initIntro(opts = {}) {
     enter.textContent = _online ? t('enter_online', { n: _lastTotal }) : t('enter_offline');
   }
 
-  // ── War Bonds（押注本場勝國）──
+  // ── 預測市場（B3：CPMM AMM 即時買/賣）──
   async function _renderWarBonds() {
     const box = document.getElementById('intro-warbonds');
     if (!box) return;
     if (!suiEnabled()) { box.innerHTML = ''; return; }
     if (!suiState.connected) { box.innerHTML = `<div class="wb-note">${t('wb_login')}</div>`; return; }
-    let war, bonds;
-    try { war = await getWar(); bonds = await getMyBonds(); } catch { box.innerHTML = ''; return; }
-    if (!war) { box.innerHTML = ''; return; }
+    let mkt, mine;
+    try { mkt = await getMarket(); mine = await getMyShares(mkt); } catch { box.innerHTML = ''; return; }
+    if (!mkt) { box.innerHTML = ''; return; }
+    const prices = [mkt.priceA, mkt.priceB];
+    const myShares = [mine.a, mine.b];
 
-    let html = `<div class="wb-title">${t('wb_title')}</div>`;
+    let html = `<div class="wb-title">${t('mk_title')}</div>`;
     NATIONS.forEach((n, i) => {
-      const pool = toSui(war.pools[i] || 0).toFixed(2);
-      const odds = oddsFor(war, i);
+      const pct = (prices[i] * 100).toFixed(1);
       html += `<div class="wb-row" style="--nc:${hex(n.color)}">
         <span class="wb-name">${n.short}</span>
-        <span class="wb-pool">${t('wb_pool', { sui: pool, odds: odds ? odds.toFixed(2) : '—' })}</span>
-        ${war.open ? `<button class="wb-bet" data-n="${i}">${t('wb_bet', { amt: BET_SUI + ' SUI' })}</button>` : ''}
+        <span class="wb-pool"><b style="color:#dce6f7">${pct}%</b>${myShares[i] ? ` · ${toSui(myShares[i]).toFixed(2)}🎟` : ''}</span>
+        ${!mkt.resolved ? `<button class="wb-bet" data-buy="${i}">${t('mk_buy', { amt: BET_SUI })}</button>` : ''}
+        ${(!mkt.resolved && myShares[i] > 0) ? `<button class="wb-bet" data-sell="${i}" style="border-color:#8794ad">${t('mk_sell')}</button>` : ''}
       </div>`;
     });
-    if (war.settled) {
-      html += `<div class="wb-note">${t('wb_settled', { name: NATIONS[war.winner]?.name || '—' })}</div>`;
-      if (bonds.some(b => b.nation === war.winner)) html += `<button class="wb-claim">${t('wb_claim')}</button>`;
-    } else if (bonds.length) {
-      html += `<div class="wb-note">🎟 ${bonds.map(b => `${NATIONS[b.nation]?.short} ${toSui(b.amount).toFixed(2)}`).join(' · ')}</div>`;
+    if (mkt.resolved) {
+      html += `<div class="wb-note">${t('wb_settled', { name: NATIONS[mkt.winner]?.name || '—' })}</div>`;
+      if (myShares[mkt.winner] > 0) html += `<button class="wb-claim">${t('mk_redeem')}</button>`;
     }
     box.innerHTML = html;
-    box.querySelectorAll('.wb-bet').forEach(b => b.addEventListener('click', () => _doBet(Number(b.dataset.n), b)));
-    box.querySelector('.wb-claim')?.addEventListener('click', () => _doClaim(bonds.filter(x => x.nation === war.winner)));
+    box.querySelectorAll('[data-buy]').forEach(b => b.addEventListener('click', () => _doTrade('buy', Number(b.dataset.buy), b)));
+    box.querySelectorAll('[data-sell]').forEach(b => b.addEventListener('click', () => _doTrade('sell', Number(b.dataset.sell), b, myShares)));
+    box.querySelector('.wb-claim')?.addEventListener('click', () => _doRedeem());
   }
-  async function _doBet(nation, btn) {
+  async function _doTrade(kind, outcome, btn, myShares) {
     btn.disabled = true; btn.textContent = '…';
-    try { await bet(nation, BET_SUI); } catch (e) { alert('押注失敗：' + e.message); }
+    try {
+      if (kind === 'buy') await buy(outcome, BET_SUI);
+      else await sell(outcome, myShares[outcome]);   // demo：賣出全部該結果份額
+    } catch (e) { alert((kind === 'buy' ? '買入' : '賣出') + '失敗：' + e.message); }
     _renderWarBonds();
   }
-  async function _doClaim(winBonds) {
-    try { for (const b of winBonds) await claimBond(b.id); alert(t('wb_claimed')); }
-    catch (e) { alert('領彩失敗：' + e.message); }
+  async function _doRedeem() {
+    try { await redeem(); alert(t('wb_claimed')); }
+    catch (e) { alert('兌付失敗：' + e.message); }
     _renderWarBonds();
   }
 

@@ -35,6 +35,11 @@ const DICT = {
     wb_claim: 'Claim winnings',
     wb_claimed: 'Winnings claimed!',
     wb_open: 'Open · round {r}',
+    mk_title: 'Prediction Market · who wins this war?',
+    mk_buy: 'Buy {amt}',
+    mk_sell: 'Sell',
+    mk_pos: 'You hold: Minas {a} · Calaadia {b}',
+    mk_redeem: 'Redeem winnings',
   },
   zh: {
     tagline: '五王國爭奪領域霸權 · 由 Sui 與 Walrus 驅動',
@@ -68,6 +73,11 @@ const DICT = {
     wb_claim: '領取彩金',
     wb_claimed: '彩金已領取！',
     wb_open: '開放中 · 第 {r} 回合',
+    mk_title: '預測市場 · 誰會贏下這場戰爭？',
+    mk_buy: '買 {amt}',
+    mk_sell: '賣出',
+    mk_pos: '你的持倉：Minas {a} · Calaadia {b}',
+    mk_redeem: '兌付彩金',
   },
 };
 

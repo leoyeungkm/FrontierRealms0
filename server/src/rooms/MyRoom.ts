@@ -1,7 +1,7 @@
 import { Room, Client } from "@colyseus/core";
 import { Player, Enemy, MyRoomState } from "./schema/MyRoomState";
 import { suiEnabled, verifyLogin, verifyCosmetics } from "../sui/verify";
-import { warbondEnabled, settleWar, openWar, currentWarId } from "../sui/admin";
+import { marketEnabled, resolveMarket, openMarket, currentMarketId } from "../sui/admin";
 
 const DURATION_LOBBY     = 7 * 1000;
 const DURATION_COUNTDOWN = 3 * 1000;
@@ -801,25 +801,25 @@ export class MyRoom extends Room<MyRoomState> {
     if (team === 1 && this.state.keepHp1 <= 0 && !this.keepDestroyed1) {
       this.keepDestroyed1 = true;
       this.broadcast('keepDestroyed', 1);  // 藍方主堡被摧毀，紅方(Calaadia=1)勝
-      this.settleWarBonds(1);
+      this.resolvePredictionMarket(1);
     }
     if (team === 2 && this.state.keepHp2 <= 0 && !this.keepDestroyed2) {
       this.keepDestroyed2 = true;
       this.broadcast('keepDestroyed', 2);  // 紅方主堡被摧毀，藍方(Minas=0)勝
-      this.settleWarBonds(0);
+      this.resolvePredictionMarket(0);
     }
   }
 
-  /** War Bonds 自動結算（server 當 oracle）：勝國上鏈 settle → 開新場 → 廣播 */
-  private settleWarBonds(winnerNation: number) {
-    if (!warbondEnabled()) return;
-    const settledWar = currentWarId();
+  /** 預測市場自動結算（server 當 oracle）：勝方上鏈 resolve → 開新市 → 廣播 */
+  private resolvePredictionMarket(winnerNation: number) {
+    if (!marketEnabled()) return;
+    const resolvedMarket = currentMarketId();
     (async () => {
-      const ok = await settleWar(winnerNation);
+      const ok = await resolveMarket(winnerNation);
       if (!ok) return;
-      this.broadcast('warSettled', [settledWar, winnerNation]);   // client 自動兌付彩金
-      const next = await openWar((this.state.wave || 1) + 1);
-      if (next) this.broadcast('warNew', next);                   // client 切到新場押注
+      this.broadcast('marketResolved', [resolvedMarket, winnerNation]);  // client 自動兌付
+      const next = await openMarket((this.state.wave || 1) + 1);
+      if (next) this.broadcast('marketNew', next);                       // client 切到新市
     })();
   }
 
