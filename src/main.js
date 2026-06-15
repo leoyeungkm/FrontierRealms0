@@ -56,6 +56,7 @@ import { preloadWeapon } from './entities/riggedCharacter.js';
 import { appearance, buildAppearanceRig, initAppearanceUI, initAppearancePreview, toggleAppearancePanel, appearanceToNet, appearanceFromNet } from './ui/appearance.js';
 import { initSuiPanel } from './ui/suiPanel.js';
 import { initIntro } from './ui/intro.js';
+import { initMarketHud, toggleMarketHud } from './ui/marketHud.js';
 import { signLogin, suiState } from './sui/wallet.js';
 import { setActiveMarket, getMarket, getMyShares, redeem } from './sui/market.js';
 import {
@@ -175,6 +176,10 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyP') toggleDebugPanel();
   // 角色外觀面板（不影響技能/武器玩法）
   if (e.code === 'KeyO') toggleAppearancePanel();
+  // 場內預測市場 HUD（進場後）：開啟時放開鼠標可點交易，關閉復原視角
+  if (e.code === 'KeyB' && _enteredGame) {
+    if (toggleMarketHud()) document.exitPointerLock(); else canvas.requestPointerLock();
+  }
   // FEZ 原版操作：Alt 切換「滑鼠游標模式（點 UI）↔ 視角控制」
   if (e.code === 'AltLeft' || e.code === 'AltRight') {
     e.preventDefault();   // 擋瀏覽器選單 focus
@@ -3071,6 +3076,7 @@ initAppearancePreview(document.getElementById('ap-preview'), {
   getWeaponTemplate: _getWeaponTemplate,
 });
 initSuiPanel(() => rebuildPlayerAppearance('gear'));   // Sui 鏈上衣櫥（裝備 NFT → 重建 + 廣播）
+initMarketHud(() => ({ hp1: keepHp1, hp2: keepHp2, max: maxKeepHp }));   // 場內預測市場 HUD（B）
 
 // Build map first (needs no async), then init physics, then connect
 buildMap();

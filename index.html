@@ -329,6 +329,33 @@
     .wb-claim { width: 100%; margin-top: 6px; padding: 9px; border-radius: 8px; cursor: pointer; font: 600 13px 'Oswald', sans-serif; color: #1a1206; background: linear-gradient(180deg,#f0c64a,#d99a2b); border: none; }
     @keyframes bfpulse { 0%,100%{opacity:.35} 50%{opacity:.9} }
 
+    /* ── 場內預測市場 HUD（B）── */
+    #market-hud {
+      display: none; position: fixed; top: 50%; left: 16px; transform: translateY(-50%); z-index: 320;
+      width: 250px; padding: 14px 16px; pointer-events: all;
+      background: linear-gradient(180deg, rgba(14,16,26,0.92), rgba(8,9,16,0.95));
+      border: 1px solid rgba(120,140,200,0.3); border-radius: 12px;
+      box-shadow: 0 14px 50px rgba(0,0,0,0.7); color: #c4cde0;
+      font-family: 'Oswald','Segoe UI',sans-serif;
+    }
+    #market-hud .mh-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+    #market-hud .mh-title { font:700 13px 'Cinzel',serif; color:#eaf2ff; letter-spacing:1px; }
+    #market-hud .mh-x { cursor:pointer; color:#8794ad; font-size:14px; }
+    .mh-nation { padding:8px; border-radius:8px; margin-bottom:8px; background:rgba(255,255,255,0.04); border-left:3px solid var(--nc,#6f86d0); }
+    .mh-top { display:flex; justify-content:space-between; align-items:baseline; }
+    .mh-name { font:700 12px 'Cinzel',serif; color:#dce6f7; }
+    .mh-pct { font:700 18px 'Oswald',sans-serif; color:var(--nc,#fff); }
+    .mh-keep { height:6px; border-radius:3px; background:#0c1120; overflow:hidden; margin:5px 0; border:1px solid rgba(120,140,200,0.2); }
+    .mh-keep > div { height:100%; background:var(--nc,#6f86d0); transition:width .3s; }
+    .mh-keeplbl { font-size:9px; color:#7b88a0; letter-spacing:.5px; }
+    .mh-btns { display:flex; gap:5px; margin-top:6px; }
+    .mh-btns button { flex:1; cursor:pointer; font:500 11px 'Oswald',sans-serif; padding:5px; border-radius:5px; color:#dce6f7; background:rgba(120,150,230,0.16); border:1px solid var(--nc,#6f86d0); }
+    .mh-btns button.mh-sell { background:transparent; border-color:#8794ad; color:#8794ad; }
+    .mh-btns button:hover:not(:disabled) { filter:brightness(1.2); }
+    .mh-btns button:disabled { opacity:.4; cursor:default; }
+    .mh-pos { font-size:10px; color:#8794ad; margin-top:4px; text-align:center; }
+    .mh-note { font-size:10px; color:#7b88a0; text-align:center; }
+
     /* ── 角色外觀面板（O）── */
     #appearance-panel {
       display: none; position: fixed; top: 12px; right: 16px; z-index: 300;
@@ -496,7 +523,7 @@
     <div id="buff-flash"></div>
 
     <!-- Debug hint -->
-    <div id="debug-hint">[ P ] 設定 ・ [ O ] 外觀 ・ [ Alt ] 滑鼠/視角</div>
+    <div id="debug-hint">[ P ] 設定 ・ [ O ] 外觀 ・ [ B ] 預測市場 ・ [ Alt ] 滑鼠/視角</div>
 
     <!-- Debug Panel (P to toggle) -->
     <div id="debug-panel">
@@ -525,6 +552,9 @@
       <button class="dbg-btn" id="dbg-reset-sp">重置技能點 (40pt)</button>
       <button class="dbg-btn" id="dbg-full-hp">HP 回滿</button>
     </div>
+
+    <!-- 場內預測市場 HUD (B to toggle) -->
+    <div id="market-hud"><!-- 由 marketHud.js 注入 --></div>
 
     <!-- 角色外觀面板 (O to toggle) -->
     <div id="appearance-panel">
