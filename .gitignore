@@ -1,0 +1,21 @@
+# 依賴 / 建置產物
+node_modules/
+dist/
+*.log
+npm-debug.log*
+
+# 環境變數 / 密鑰（package id 走 .env，絕不上傳）
+.env
+.env.local
+.env.*.local
+
+# Sui 部署輸出
+sui/publish-output.json
+sui/build/
+
+# 編輯器 / 系統
+.vscode/
+.idea/
+.claude/
+.DS_Store
+Thumbs.db

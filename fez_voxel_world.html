@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FEZ 體素世界 (可破壞)</title>
+<style>
+  :root{--ink:#0c1018;--panel:rgba(16,22,34,.9);--line:rgba(150,180,220,.2);--txt:#e7eef7}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:var(--ink);font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;color:var(--txt)}
+  #app{position:fixed;inset:0;cursor:crosshair}canvas{display:block}
+  .panel{position:fixed;background:var(--panel);backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:13px;box-shadow:0 10px 40px rgba(0,0,0,.6)}
+  #info{top:14px;left:14px;width:230px;padding:15px}
+  #info h1{font-size:15px;letter-spacing:.04em;color:#8fc0ff;text-shadow:0 0 14px rgba(120,180,255,.4);margin-bottom:3px}
+  #info .sub{font-size:11px;color:#8fa6c0;margin-bottom:11px}
+  #info .k{font-size:11.5px;color:#cfdcec;margin:5px 0;display:flex;gap:8px;align-items:center}
+  #info .k b{color:#8fc0ff}
+  .tog{display:flex;align-items:center;justify-content:space-between;font-size:11.5px;color:#ccd8e6;margin:7px 0 0}
+  .tog .s{width:34px;height:18px;border-radius:9px;background:#33405a;position:relative;transition:.15s;cursor:pointer}
+  .tog .s.on{background:linear-gradient(90deg,#2f8fd0,#27c08a)}
+  .tog .s::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#8295ad;transition:.15s}
+  .tog .s.on::after{left:18px;background:#fff}
+  #palette{bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:6px;padding:8px}
+  .blk{width:42px;height:42px;border-radius:8px;border:2px solid transparent;cursor:pointer;transition:.1s;position:relative;image-rendering:pixelated}
+  .blk:hover{transform:translateY(-3px)}
+  .blk.on{border-color:#fff;box-shadow:0 0 12px rgba(255,255,255,.5)}
+  .blk span{position:absolute;bottom:-16px;left:0;width:100%;text-align:center;font-size:9px;color:#9fb6d0}
+  #hint{position:fixed;top:14px;right:14px;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:10px 14px;font-size:11.5px;color:#9fb6d0;backdrop-filter:blur(8px);max-width:200px}
+  #hint b{color:#8fc0ff}#hint div{margin:3px 0}
+  #cnt{position:fixed;bottom:14px;right:14px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:11px;color:#8fa6c0}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="panel" id="info">
+  <h1>⛏ FEZ 體素世界</h1>
+  <div class="sub">1×1 方格 · 可破壞可建造</div>
+  <div class="k"><b>左鍵</b> 挖掉方塊</div>
+  <div class="k"><b>右鍵</b> 放置方塊</div>
+  <div class="k"><b>拖曳</b> 轉視角</div>
+  <div class="k"><b>滾輪</b> 縮放</div>
+  <div class="tog"><span>自動環繞</span><span class="s" id="t-spin"></span></div>
+  <div class="tog"><span>顯示準心方塊</span><span class="s on" id="t-hl"></span></div>
+</div>
+<div class="panel" id="hint"><div><b>Minecraft 式體素</b></div><div>整個世界由 1×1 方塊組成,只渲染暴露面。挖掉/放置會即時重建。</div></div>
+<div class="panel" id="palette"></div>
+<div id="cnt"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const app=document.getElementById('app');
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x7ba6cf);scene.fog=new THREE.Fog(0x7ba6cf,190,400);
+const camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,0.1,500);
+let camYaw=.7,camPitch=.55,camDist=135,camTarget=new THREE.Vector3(0,4,0);
+function updateCam(){camera.position.set(camTarget.x+Math.sin(camYaw)*Math.cos(camPitch)*camDist,
+  camTarget.y+Math.sin(camPitch)*camDist,camTarget.z+Math.cos(camYaw)*Math.cos(camPitch)*camDist);camera.lookAt(camTarget);}
+updateCam();
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputEncoding=THREE.sRGBEncoding;
+app.appendChild(renderer.domElement);
+const sun=new THREE.DirectionalLight(0xffe8c8,1.25);sun.position.set(75,125,55);sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);const sc=sun.shadow.camera;sc.left=-140;sc.right=140;sc.top=140;sc.bottom=-140;sc.near=1;sc.far=460;sun.shadow.bias=-.0005;scene.add(sun);
+scene.add(new THREE.HemisphereLight(0x9ab8e0,0x44503a,.42));
+scene.add(new THREE.AmbientLight(0xffffff,.14));
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.95;  // 避免過曝
+
+/* ════════ 方塊類型 + 像素材質 ════════ */
+const BLOCKS={
+  grass:{name:'草',color:0x6aa84a,pattern:'grass'},
+  dirt:{name:'泥',color:0x6e4a30,pattern:'dirt'},
+  stone:{name:'石',color:0x808890,pattern:'stone'},
+  brick:{name:'磚',color:0x9aa0aa,pattern:'stone'},
+  sand:{name:'沙',color:0xd6c388,pattern:'sand'},
+  wood:{name:'木',color:0x6b4a2a,pattern:'wood'},
+  leaves:{name:'葉',color:0x3f7a32,pattern:'grass'},
+  water:{name:'水',color:0x4f90d0,pattern:'water'},
+  crystal:{name:'晶',color:0x7ad6c8,pattern:'crystal'},
+  blue:{name:'藍',color:0x4a6fae,pattern:'stone'},
+  red:{name:'紅',color:0xae4a4a,pattern:'stone'},
+};
+const BLOCK_IDS=Object.keys(BLOCKS);
+function makeTex(b){const N=16,c=document.createElement('canvas');c.width=c.height=N;const g=c.getContext('2d');
+  const base=new THREE.Color(b.color);const rnd=(x,y)=>{const n=Math.sin(x*127.1+y*311.7)*43758.5;return n-Math.floor(n);};
+  const px=(x,y,col)=>{g.fillStyle='rgb('+(col.r*255|0)+','+(col.g*255|0)+','+(col.b*255|0)+')';g.fillRect(x,y,1,1);};
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++)px(x,y,base.clone().multiplyScalar(.86+rnd(x,y)*.22));
+  const dk=base.clone().multiplyScalar(.74),lt=base.clone().multiplyScalar(1.18);
+  if(b.pattern==='grass'){for(let i=0;i<40;i++){const x=rnd(i,1)*N|0,y=rnd(i,2)*N|0;px(x,y,rnd(i,3)>.5?dk:lt);}
+    for(let x=0;x<N;x++)if(rnd(x,9)>.45)px(x,0,lt);}
+  else if(b.pattern==='dirt'||b.pattern==='sand'){for(let i=0;i<34;i++)px(rnd(i,5)*N|0,rnd(i,6)*N|0,rnd(i,7)>.5?dk:lt);}
+  else if(b.pattern==='stone'){for(let i=0;i<4;i++){let x=rnd(i,11)*N|0,y=rnd(i,12)*N|0;for(let s=0;s<7;s++){px(x,y,dk);x=(x+(rnd(i+s,13)>.5?1:-1)+N)%N;y=(y+(rnd(i+s,14)>.6?1:0))%N;}}}
+  else if(b.pattern==='wood'){for(let x=0;x<N;x++)for(let y=0;y<N;y++)if((x%5)===0||(x%5)===1)px(x,y,dk);}
+  else if(b.pattern==='water'){for(let y=0;y<N;y++)for(let x=0;x<N;x++)if((Math.sin(x*.6+y*.3)+Math.cos(y*.7))>1.1)px(x,y,lt);}
+  else if(b.pattern==='crystal'){for(let i=0;i<20;i++)px(rnd(i,3)*N|0,rnd(i,4)*N|0,lt);}
+  const t=new THREE.CanvasTexture(c);t.magFilter=THREE.NearestFilter;t.minFilter=THREE.NearestFilter;return t;}
+const blockMat={};for(const id in BLOCKS){const b=BLOCKS[id];
+  blockMat[id]=new THREE.MeshStandardMaterial({map:makeTex(b),roughness:id==='crystal'?.2:.9,metalness:0,
+    transparent:id==='water',opacity:id==='water'?.8:1,emissive:id==='crystal'?new THREE.Color(0x2a8f7a):new THREE.Color(0),emissiveIntensity:id==='crystal'?.5:0});}
+
+/* ════════ 世界:稀疏方塊儲存 ════════ */
+const WORLD=new Map();                          // key "x,y,z" -> blockId
+const key=(x,y,z)=>x+','+y+','+z;
+function setBlock(x,y,z,id){if(id)WORLD.set(key(x,y,z),id);else WORLD.delete(key(x,y,z));}
+function getBlock(x,y,z){return WORLD.get(key(x,y,z));}
+
+/* ── 地形生成(三路 MOBA + 體素) ── */
+const W=128,D=128,HX=W/2,HZ=D/2;
+const BASE_A=[20,108],BASE_B=[108,20];
+function distSeg(px,pz,ax,az,bx,bz){const dx=bx-ax,dz=bz-az,L2=dx*dx+dz*dz;let t=L2?((px-ax)*dx+(pz-az)*dz)/L2:0;t=Math.max(0,Math.min(1,t));return Math.hypot(px-(ax+t*dx),pz-(az+t*dz));}
+function laneDist(x,z){return Math.min(
+  distSeg(x,z,BASE_A[0],BASE_A[1],BASE_B[0],BASE_B[1]),
+  distSeg(x,z,BASE_A[0],BASE_A[1],22,22),distSeg(x,z,22,22,BASE_B[0],BASE_B[1]),
+  distSeg(x,z,BASE_A[0],BASE_A[1],106,106),distSeg(x,z,106,106,BASE_B[0],BASE_B[1]));}
+function baseDist(x,z){return Math.min(Math.hypot(x-BASE_A[0],z-BASE_A[1]),Math.hypot(x-BASE_B[0],z-BASE_B[1]));}
+// 值噪聲(可重複,用於地形起伏)
+function hash(ix,iz){const n=Math.sin(ix*127.1+iz*311.7)*43758.5453;return n-Math.floor(n);}
+function vnoise(x,z){const ix=Math.floor(x),iz=Math.floor(z);const fx=x-ix,fz=z-iz;
+  const u=fx*fx*(3-2*fx),v=fz*fz*(3-2*fz);
+  const a=hash(ix,iz),b=hash(ix+1,iz),c=hash(ix,iz+1),d=hash(ix+1,iz+1);
+  return a*(1-u)*(1-v)+b*u*(1-v)+c*(1-u)*v+d*u*v;}
+function fbm(x,z){ // 多八度疊加 → 自然起伏
+  let f=0,amp=1,frq=1,sum=0;
+  for(let o=0;o<5;o++){f+=vnoise(x*frq*.05,z*frq*.05)*amp;sum+=amp;amp*=.5;frq*=2.1;}
+  return f/sum;} // 0..1
+function heightAt(x,z){const ld=laneDist(x,z),bd=baseDist(x,z);
+  const n=fbm(x,z);
+  // 大尺度山脈遮罩(低頻):決定哪裡是高山、哪裡是低谷
+  const mountain=vnoise(x*.018+10,z*.018+5);      // 0..1 緩慢變化
+  // 基礎起伏(中頻細節)
+  let land=1+Math.pow(n,1.6)*16;                  // 細部丘陵
+  // 高山區:大幅隆起(山脈遮罩>0.55 才長山,落差大)
+  const m=Math.max(0,(mountain-0.5))*2;           // 0..1
+  land+=Math.pow(m,1.8)*30;                       // 最高 +30 層 → 雄偉高山
+  // 深谷:山脈遮罩低處下沉
+  if(mountain<.35)land-=(.35-mountain)*14;
+  // 階地化(每 3 層一階)→ 製造懸崖/台地感
+  land=Math.floor(land/3)*3 + (land%3>2.2?2:0);
+  // 山脊:遠離路與基地的區域額外隆起
+  land+=Math.max(0,ld-12)*.35*(0.5+vnoise(x*.04,z*.04));
+  let h=land;
+  // 路:壓平成可走的低通道
+  const laneFloor=4;
+  if(ld<4) h=laneFloor;
+  else if(ld<10){const t=(ld-4)/6;h=laneFloor*(1-t)+land*t;}  // 路肩平滑過渡
+  // 基地:平台
+  if(bd<8) h=5;
+  else if(bd<13){const t=(bd-8)/5;h=5*(1-t)+h*t;}
+  return Math.max(1,Math.round(h));}
+function surfaceId(x,z,h){const ld=laneDist(x,z),bd=baseDist(x,z);
+  if(bd<8)return 'stone';
+  if(ld<4)return 'sand';                          // 路:沙(土黃)
+  if(h>=24)return 'stone';                         // 雪線? 用石(高山頂)
+  if(h>=16)return 'stone';                         // 高地裸岩
+  if(h<=3)return 'sand';                           // 低地/河床
+  if(h>=12)return 'dirt';                          // 山坡泥土
+  return 'grass';}
+// 填充世界(實心堆疊) + 低地填水
+const SEA=4;                                     // 水平面層
+for(let x=0;x<W;x++)for(let z=0;z<D;z++){const h=heightAt(x,z);const bd=baseDist(x,z),ld=laneDist(x,z);
+  for(let y=0;y<h;y++){let id;if(y===h-1)id=surfaceId(x,z,h);else if(y>=h-3)id='dirt';else id='stone';setBlock(x,y,z,id);}
+  // 低於水平面且非路非基地 → 灌水成河/湖
+  if(h<SEA&&ld>5&&bd>9){for(let y=h;y<SEA;y++)setBlock(x,y,z,'water');}}
+// 樹(叢林)
+let planted=0;for(let tr=0;tr<1200&&planted<150;tr++){const x=4+(Math.random()*(W-8)|0),z=4+(Math.random()*(D-8)|0);
+  if(laneDist(x,z)>7&&baseDist(x,z)>8){const h=heightAt(x,z);for(let i=0;i<4;i++)setBlock(x,h+i,z,'wood');
+    for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++)for(let dy=3;dy<=5;dy++)if(Math.abs(dx)+Math.abs(dz)+Math.abs(dy-4)<4)setBlock(x+dx,h+dy,z+dz,'leaves');planted++;}}
+// —— 兩軍城堡(體素堆疊):城牆+角塔+主塔+隊色旗+水晶核心 ——
+function buildCastle(bx,bz,team){const h=heightAt(bx,bz);const wallId='brick',teamId=team;
+  // 整地:城堡基座鋪平
+  for(let dx=-6;dx<=6;dx++)for(let dz=-6;dz<=6;dz++){for(let y=0;y<h;y++)setBlock(bx+dx,y,bz+dz,y>=h-2?'stone':'stone');}
+  // 外城牆(方形,高3,留缺口當門)
+  for(let dx=-6;dx<=6;dx++)for(let dz=-6;dz<=6;dz++){if(Math.abs(dx)===6||Math.abs(dz)===6){
+    if(Math.abs(dx)<2&&dz===6)continue;          // 城門缺口
+    for(let y=h;y<h+3;y++)setBlock(bx+dx,y,bz+dz,wallId);
+    if(((dx+dz)&1)===0)setBlock(bx+dx,h+3,bz+dz,wallId); // 城垛
+  }}
+  // 四角塔(高6,頂隊色)
+  [[-6,-6],[6,-6],[-6,6],[6,6]].forEach(([cx,cz])=>{for(let y=h;y<h+6;y++)for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++)setBlock(bx+cx+dx,y,bz+cz+dz,wallId);
+    for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++)setBlock(bx+cx+dx,h+6,bz+cz+dz,teamId);});
+  // 中央主塔(高8)
+  for(let y=h;y<h+8;y++)for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++)if(Math.abs(dx)===2||Math.abs(dz)===2)setBlock(bx+dx,y,bz+dz,wallId);
+  for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++)setBlock(bx+dx,h+8,bz+dz,teamId); // 塔頂隊色平台
+  // 水晶核心(主塔頂發光)
+  for(let k=0;k<3;k++)setBlock(bx,h+9+k,bz,'crystal');
+  // 旗杆
+  for(let y=h+9;y<h+13;y++)setBlock(bx+(team==='blue'?-2:2),y,bz,'wood');
+}
+buildCastle(BASE_A[0],BASE_A[1],'blue');
+buildCastle(BASE_B[0],BASE_B[1],'red');
+
+// —— 大水晶礦(高聳晶簇,散布要道)——
+function buildBigCrystal(x,z){const h=heightAt(x,z);
+  // 主晶柱(高5)
+  for(let k=0;k<5;k++)setBlock(x,h+k,z,'crystal');
+  // 環繞小晶
+  [[1,0,3],[-1,0,3],[0,1,2],[0,-1,4],[1,1,2]].forEach(([dx,dz,hh])=>{for(let k=0;k<hh;k++)setBlock(x+dx,h+k,z+dz,'crystal');});
+}
+// 沿三路 + 叢林散布
+[[56,56],[40,80],[88,48],[48,92],[64,64],[68,36],[36,68],[80,100],[100,80],[48,48]].forEach(([x,z])=>{if(x>2&&x<W-2&&z>2&&z<D-2)buildBigCrystal(x,z);});
+
+/* ════════ 渲染:只畫暴露方塊,用 InstancedMesh ════════ */
+const cubeGeo=new THREE.BoxGeometry(1,1,1);
+const meshes={};                                // blockId -> InstancedMesh
+const dummy=new THREE.Object3D();
+function isExposed(x,y,z){                       // 至少一面鄰空氣
+  return !getBlock(x+1,y,z)||!getBlock(x-1,y,z)||!getBlock(x,y+1,z)||!getBlock(x,y-1,z)||!getBlock(x,y,z+1)||!getBlock(x,y,z-1);}
+function rebuild(){
+  // 收集每種方塊的暴露實例
+  const lists={};for(const id in BLOCKS)lists[id]=[];
+  WORLD.forEach((id,k)=>{const [x,y,z]=k.split(',').map(Number);if(isExposed(x,y,z))lists[id].push([x,y,z]);});
+  for(const id in BLOCKS){
+    if(meshes[id]){scene.remove(meshes[id]);meshes[id].dispose&&meshes[id].dispose();}
+    const list=lists[id];if(!list.length){meshes[id]=null;continue;}
+    const im=new THREE.InstancedMesh(cubeGeo,blockMat[id],list.length);
+    im.castShadow=true;im.receiveShadow=true;im.userData.list=list;
+    list.forEach((p,i)=>{dummy.position.set(p[0]-HX,p[1],p[2]-HZ);dummy.updateMatrix();im.setMatrixAt(i,dummy.matrix);});
+    im.instanceMatrix.needsUpdate=true;scene.add(im);meshes[id]=im;}
+  updateCount();
+}
+function updateCount(){let vis=0;for(const id in meshes)if(meshes[id])vis+=meshes[id].count;
+  document.getElementById('cnt').textContent='方塊 '+WORLD.size+' · 渲染面 '+vis;}
+rebuild();
+
+/* ════════ 準心高亮 ════════ */
+let showHL=true;
+const hlMesh=new THREE.Mesh(new THREE.BoxGeometry(1.04,1.04,1.04),
+  new THREE.MeshBasicMaterial({color:0xffffff,wireframe:true,transparent:true,opacity:.7}));
+hlMesh.visible=false;scene.add(hlMesh);
+
+/* ════════ 射線:挖/放 ════════
+   對所有 InstancedMesh 做 raycast,取最近命中,用面法線決定挖(該格)或放(鄰格) */
+const raycaster=new THREE.Raycaster();const mouse=new THREE.Vector2();
+function pick(clientX,clientY){
+  mouse.x=(clientX/innerWidth)*2-1;mouse.y=-(clientY/innerHeight)*2+1;raycaster.setFromCamera(mouse,camera);
+  const ims=[];for(const id in meshes)if(meshes[id])ims.push(meshes[id]);
+  const hits=raycaster.intersectObjects(ims,false);
+  if(!hits.length)return null;const h=hits[0];const im=h.object;const inst=h.instanceId;
+  const p=im.userData.list[inst];                // [x,y,z] (世界格)
+  const n=h.face.normal.clone();                 // 面法線(本地=世界,無旋轉)
+  return {gx:p[0],gy:p[1],gz:p[2],nx:Math.round(n.x),ny:Math.round(n.y),nz:Math.round(n.z),point:h.point};}
+function breakBlock(clientX,clientY){const r=pick(clientX,clientY);if(!r)return;
+  spawnBreak(r.gx-HX,r.gy,r.gz-HZ,getBlock(r.gx,r.gy,r.gz));
+  setBlock(r.gx,r.gy,r.gz,null);rebuild();}
+function placeBlock(clientX,clientY){const r=pick(clientX,clientY);if(!r)return;
+  const x=r.gx+r.nx,y=r.gy+r.ny,z=r.gz+r.nz;if(y<0||y>60)return;if(getBlock(x,y,z))return;
+  setBlock(x,y,z,curBlock);rebuild();}
+// 破壞碎屑
+const debris=[];
+function spawnBreak(wx,wy,wz,id){if(!id)return;const m=blockMat[id];
+  for(let i=0;i<6;i++){const c=new THREE.Mesh(new THREE.BoxGeometry(.25,.25,.25),m);
+    c.position.set(wx+(Math.random()-.5),wy+(Math.random()-.5),wz+(Math.random()-.5));scene.add(c);
+    debris.push({m:c,v:new THREE.Vector3((Math.random()-.5)*4,3+Math.random()*3,(Math.random()-.5)*4),t:0});}}
+
+/* ════════ 控制 ════════ */
+let curBlock='grass';
+const pal=document.getElementById('palette');
+BLOCK_IDS.forEach((id,i)=>{const b=BLOCKS[id];const d=document.createElement('div');d.className='blk'+(id==='grass'?' on':'');
+  // 用材質縮圖當底
+  const cv=makeTex(b);const url=cv.image.toDataURL();d.style.backgroundImage='url('+url+')';d.style.backgroundSize='cover';
+  d.innerHTML='<span>'+b.name+'</span>';d.onclick=()=>{curBlock=id;[...pal.children].forEach(c=>c.classList.remove('on'));d.classList.add('on');};
+  pal.appendChild(d);});
+
+let spin=false;const tSpin=document.getElementById('t-spin');tSpin.onclick=()=>{spin=!spin;tSpin.classList.toggle('on',spin);};
+const tHL=document.getElementById('t-hl');tHL.onclick=()=>{showHL=!showHL;tHL.classList.toggle('on',showHL);if(!showHL)hlMesh.visible=false;};
+
+let drag=false,px=0,py=0,moved=0,btn=0;
+app.addEventListener('mousedown',e=>{drag=true;px=e.clientX;py=e.clientY;moved=0;btn=e.button;});
+addEventListener('mouseup',e=>{drag=false;if(moved<5){if(e.button===0)breakBlock(e.clientX,e.clientY);else if(e.button===2)placeBlock(e.clientX,e.clientY);}});
+app.addEventListener('contextmenu',e=>e.preventDefault());
+addEventListener('mousemove',e=>{
+  if(drag){moved+=Math.abs(e.clientX-px)+Math.abs(e.clientY-py);
+    camYaw-=(e.clientX-px)*.005;camPitch=THREE.MathUtils.clamp(camPitch+(e.clientY-py)*.004,.1,1.45);px=e.clientX;py=e.clientY;updateCam();}
+  // 準心高亮
+  if(showHL){const r=pick(e.clientX,e.clientY);if(r){hlMesh.visible=true;hlMesh.position.set(r.gx-HX,r.gy,r.gz-HZ);}else hlMesh.visible=false;}});
+app.addEventListener('wheel',e=>{e.preventDefault();camDist=THREE.MathUtils.clamp(camDist+e.deltaY*.08,32,320);updateCam();},{passive:false});
+
+const clock=new THREE.Clock();
+function loop(){requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05);
+  if(spin){camYaw+=dt*.1;updateCam();}
+  for(let i=debris.length-1;i>=0;i--){const d=debris[i];d.t+=dt;d.v.y-=14*dt;
+    d.m.position.addScaledVector(d.v,dt);d.m.rotation.x+=dt*5;d.m.rotation.y+=dt*4;
+    if(d.t>.8){scene.remove(d.m);debris.splice(i,1);}}
+  renderer.render(scene,camera);}
+loop();
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+</script>
+</body>
+</html>

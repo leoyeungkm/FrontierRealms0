@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>體素角色建構器</title>
+<style>
+  :root{--ink:#10131c;--panel:rgba(20,24,36,.9);--line:rgba(150,170,210,.2);--accent:#7ad65f;--txt:#e7eef7}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:var(--ink);font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;color:var(--txt)}
+  #app{position:fixed;inset:0}canvas{display:block}
+  .panel{position:fixed;background:var(--panel);backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 44px rgba(0,0,0,.6)}
+  #equip{top:14px;left:14px;width:254px;max-height:calc(100vh - 28px);overflow-y:auto;padding:16px}
+  #equip h1{font-size:15px;letter-spacing:.04em;color:var(--accent);margin-bottom:2px;text-shadow:0 0 14px rgba(122,214,95,.4)}
+  #equip .sub{font-size:11px;color:#8fa6c0;margin-bottom:14px}
+  .slot{margin-bottom:13px}
+  .slot .lbl{font-size:10px;letter-spacing:.15em;text-transform:uppercase;font-weight:800;color:#9fb6d0;margin:0 0 7px 2px}
+  .opts{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+  .opt{background:rgba(44,56,82,.5);border:1px solid var(--line);color:#dce8f5;padding:7px 6px;border-radius:7px;font-size:11.5px;cursor:pointer;transition:.13s;font-family:inherit;text-align:center}
+  .opt:hover{background:rgba(70,90,130,.7)}
+  .opt.on{background:linear-gradient(180deg,#62b84a,#458a32);border-color:#8be070;color:#0e1a08;font-weight:700;box-shadow:0 0 12px rgba(122,214,95,.4)}
+  .swatch{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+  .sw-c{aspect-ratio:1;border-radius:5px;cursor:pointer;border:2px solid transparent;transition:.1s;image-rendering:pixelated}
+  .sw-c:hover{transform:scale(1.12)}
+  .sw-c.on{border-color:#fff;box-shadow:0 0 8px rgba(255,255,255,.6)}
+  #ctrl{top:14px;right:14px;width:212px;padding:16px}
+  #ctrl .lbl{font-size:10px;letter-spacing:.15em;text-transform:uppercase;font-weight:800;color:#9fb6d0;margin:0 0 7px 2px}
+  .pose{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:13px}
+  .pose button{flex:1 1 45%;background:rgba(44,56,82,.5);border:1px solid var(--line);color:#dce8f5;padding:7px 4px;border-radius:7px;font-size:11.5px;cursor:pointer;font-family:inherit}
+  .pose button.on{background:linear-gradient(180deg,#62b84a,#458a32);border-color:#8be070;color:#0e1a08;font-weight:700}
+  .row{display:flex;align-items:center;gap:8px;font-size:11px;color:#9fb6d0;margin:7px 2px}.row input{flex:1}
+  .sw-row{display:flex;align-items:center;justify-content:space-between;font-size:11.5px;color:#ccd8e6;margin:8px 2px}
+  .sw{width:34px;height:18px;border-radius:9px;background:#33405a;position:relative;transition:.15s;cursor:pointer}
+  .sw.on{background:linear-gradient(90deg,#3aa840,#27c08a)}
+  .sw::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#8295ad;transition:.15s}
+  .sw.on::after{left:18px;background:#fff}
+  #rand{width:100%;margin-top:6px;background:linear-gradient(180deg,#4a8e5a,#2f6e3f);border:1px solid #7bc08f;color:#fff;padding:9px;border-radius:9px;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:700}
+  #rand:hover{filter:brightness(1.12)}
+  #cap{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:7px 16px;font-size:11.5px;color:#9fb6d0;backdrop-filter:blur(8px)}
+  #cap b{color:var(--accent)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="panel" id="equip">
+  <h1>⛏ 體素角色建構器</h1>
+  <div class="sub">Sandbox 風格 · 方塊咬合 · 無接縫</div>
+  <div class="slot"><div class="lbl">😀 頭部 HEAD</div><div class="opts" id="slot-head"></div></div>
+  <div class="slot"><div class="lbl">👕 上身 UPPER</div><div class="opts" id="slot-upper"></div></div>
+  <div class="slot"><div class="lbl">👖 下身 LOWER</div><div class="opts" id="slot-lower"></div></div>
+  <div class="slot"><div class="lbl">🗡 武器 WEAPON</div><div class="opts" id="slot-weapon"></div></div>
+  <div class="slot"><div class="lbl">🎨 主色 COLOR</div><div class="swatch" id="slot-color"></div></div>
+</div>
+<div class="panel" id="ctrl">
+  <div class="lbl">動作 POSE</div>
+  <div class="pose" id="poses"></div>
+  <div class="lbl">顯示 DISPLAY</div>
+  <div class="sw-row"><span>自動旋轉</span><div class="sw on" id="sw-spin"></div></div>
+  <div class="sw-row"><span>像素紋理</span><div class="sw on" id="sw-tex"></div></div>
+  <div class="row"><span>燈光</span><input type="range" id="sl-light" min="40" max="180" value="100"></div>
+  <button id="rand">🎲 隨機外觀</button>
+  <button id="shatter" style="width:100%;margin-top:6px;background:linear-gradient(180deg,#3a7a55,#2a5e40);border:1px solid #6bc08f;color:#fff;padding:9px;border-radius:9px;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:700">↻ 重生(復原全部)</button>
+</div>
+<div id="hitlabel" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:26px;font-weight:800;color:#ff8a6a;text-shadow:0 0 18px rgba(255,90,60,.7);opacity:0;transition:opacity .25s;pointer-events:none"></div>
+<div id="cap">⚔ <b>點擊</b>身體部位 → 該部位被打飛消失 · <b>拖曳</b>轉視角 · <b>滾輪</b>縮放 · 重生鍵復原</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ───────── 場景 ───────── */
+const app=document.getElementById('app');
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x141822);
+const camera=new THREE.PerspectiveCamera(45,innerWidth/innerHeight,0.1,100);
+let camYaw=.6,camPitch=.16,camDist=7;
+function updateCam(){camera.position.set(Math.sin(camYaw)*Math.cos(camPitch)*camDist,1.5+Math.sin(camPitch)*camDist,Math.cos(camYaw)*Math.cos(camPitch)*camDist);camera.lookAt(0,1.45,0);}
+updateCam();
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputEncoding=THREE.sRGBEncoding;
+app.appendChild(renderer.domElement);
+const key=new THREE.DirectionalLight(0xfff0d8,2.0);key.position.set(5,9,5);key.castShadow=true;
+key.shadow.mapSize.set(2048,2048);key.shadow.camera.left=-5;key.shadow.camera.right=5;key.shadow.camera.top=6;key.shadow.camera.bottom=-2;key.shadow.bias=-.0004;scene.add(key);
+const rim=new THREE.DirectionalLight(0x88bbff,.7);rim.position.set(-6,4,-4);scene.add(rim);
+scene.add(new THREE.HemisphereLight(0xbcd4ff,0x3a3f2f,.6));
+const platform=new THREE.Mesh(new THREE.CylinderGeometry(2.6,2.8,.3,8),new THREE.MeshStandardMaterial({color:0x2a3144,roughness:.8,metalness:.1}));
+platform.position.y=-.15;platform.receiveShadow=true;scene.add(platform);
+const disc=new THREE.Mesh(new THREE.CylinderGeometry(2.4,2.4,.05,8),new THREE.MeshStandardMaterial({color:0x39435c,roughness:.6,emissive:0x10202f,emissiveIntensity:.5}));
+disc.position.y=.03;disc.receiveShadow=true;scene.add(disc);
+
+/* ───────── 像素紋理產生器 ─────────
+   給每種材質一張帶噪點的方塊紋理(Minecraft 那種顆粒感) */
+let useTex=true;
+const texCache={};
+function pixelTex(baseHex){const k=baseHex+(useTex?'t':'f');if(texCache[k])return texCache[k];
+  const N=16,c=document.createElement('canvas');c.width=c.height=N;const g=c.getContext('2d');
+  const base=new THREE.Color(baseHex);
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    let f=1;if(useTex){const n=(Math.sin(x*12.9+y*78.2)*43758.5)%1;f=.82+Math.abs(n)*.32;}
+    const col=base.clone().multiplyScalar(f);
+    g.fillStyle='rgb('+(col.r*255|0)+','+(col.g*255|0)+','+(col.b*255|0)+')';g.fillRect(x,y,1,1);}
+  const t=new THREE.CanvasTexture(c);t.magFilter=THREE.NearestFilter;t.minFilter=THREE.NearestFilter;texCache[k]=t;return t;}
+function vmat(hex,rough,metal){return new THREE.MeshStandardMaterial({map:pixelTex(hex),color:0xffffff,roughness:rough==null?.85:rough,metalness:metal||0});}
+
+/* ───────── 體素工具 ─────────
+   一個「部件」由多個小方塊組成。關節處的方塊刻意延伸/重疊,
+   彎曲時兩段的方塊互相咬合,所以永遠不會露縫(這是體素角色不會有接縫的關鍵) */
+function voxel(parent,w,h,d,m,x,y,z,store){const g=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);
+  g.position.set(x||0,y||0,z||0);g.castShadow=true;g.receiveShadow=true;parent.add(g);store&&store.push(g);return g;}
+
+const COLORS=[0x4f7fc0,0xc04f4f,0x4fb07a,0xc9a23a,0x8a5fc0,0x4fb0c0,0xd07a3a,0x46506a,0xc94f8f,0xd8d8d8,0x2f9f6a,0xa83030];
+let curCol=COLORS[0];
+const SKIN=0xd8a878;
+
+/* ═══════════ 骨架(二段關節) ═══════════ */
+const root=new THREE.Group();scene.add(root);
+const pelvis=new THREE.Group();pelvis.position.y=1.0;root.add(pelvis);
+const torsoAnchor=new THREE.Group();pelvis.add(torsoAnchor);
+const headAnchor=new THREE.Group();headAnchor.position.y=.96;pelvis.add(headAnchor);
+function makeArm(side){const s=side==='L'?-1:1;
+  const shoulder=new THREE.Group();shoulder.position.set(.48*s,.62,0);torsoAnchor.add(shoulder);
+  const elbow=new THREE.Group();elbow.position.set(0,-.42,0);shoulder.add(elbow);
+  const hand=new THREE.Group();hand.position.set(0,-.42,0);elbow.add(hand);
+  return {side,s,shoulder,elbow,hand,upperParts:[],foreParts:[]};}
+const armL=makeArm('L'),armR=makeArm('R');
+function makeLeg(side){const s=side==='L'?-1:1;
+  const hip=new THREE.Group();hip.position.set(.17*s,0,0);pelvis.add(hip);
+  const knee=new THREE.Group();knee.position.set(0,-.46,0);hip.add(knee);
+  const foot=new THREE.Group();foot.position.set(0,-.44,0);knee.add(foot);
+  return {side,s,hip,knee,foot,thighParts:[],shinParts:[]};}
+const legL=makeLeg('L'),legR=makeLeg('R');
+const jointDots=[];
+function addDot(p){const d=new THREE.Mesh(new THREE.BoxGeometry(.1,.1,.1),new THREE.MeshBasicMaterial({color:0x7ad65f}));d.visible=false;p.add(d);jointDots.push(d);}
+[armL,armR].forEach(a=>{addDot(a.shoulder);addDot(a.elbow);});[legL,legR].forEach(l=>{addDot(l.hip);addDot(l.knee);});
+
+function clearGroup(arr){arr.forEach(o=>{o.parent&&o.parent.remove(o);o.geometry&&o.geometry.dispose();});arr.length=0;}
+
+/* ═══════════ 上身 ═══════════
+   關鍵:上臂方塊頂端「往上多伸一截」(到肩關節之上),前臂頂端也往上伸到肘之上,
+   彎曲時上下段在關節處重疊咬合 → 無縫 */
+const torsoParts=[];
+function buildUpper(id){
+  clearGroup(torsoParts);clearGroup(armL.upperParts);clearGroup(armL.foreParts);clearGroup(armR.upperParts);clearGroup(armR.foreParts);
+  const c1=new THREE.Color(curCol),c2=c1.clone().multiplyScalar(.72);
+  const cloth=vmat(c1.getHex()),cloth2=vmat(c2.getHex());
+  const steel=vmat(0xaab4c4,.45,.5),steelD=vmat(0x8a94a6,.45,.5);
+  const leather=vmat(0x6e4a30),leatherD=vmat(0x4e3420);
+  const skin=vmat(SKIN);
+  const aw=id==='plate'?.26:(id==='robe'?.3:.22); // 手臂粗細
+  const upM=(id==='plate')?steel:(id==='leather'?leather:(id==='bare'?skin:cloth));
+  const foM=(id==='plate')?steelD:(id==='leather'?leatherD:(id==='robe'?cloth:skin));
+  // 軀幹
+  if(id==='tunic'){voxel(torsoAnchor,.7,.92,.4,cloth,0,.55,0,torsoParts);voxel(torsoAnchor,.74,.16,.42,cloth2,0,.14,0,torsoParts);voxel(torsoAnchor,.5,.3,.42,cloth2,0,.74,.01,torsoParts);}
+  else if(id==='leather'){voxel(torsoAnchor,.74,.92,.42,leather,0,.55,0,torsoParts);voxel(torsoAnchor,.8,.2,.46,leatherD,0,.82,0,torsoParts);voxel(torsoAnchor,.5,.5,.44,vmat(0x8a6038,.7),0,.5,.03,torsoParts);voxel(torsoAnchor,.16,.7,.44,leatherD,0,.5,.02,torsoParts);}
+  else if(id==='plate'){voxel(torsoAnchor,.78,.92,.46,steel,0,.55,0,torsoParts);voxel(torsoAnchor,.86,.22,.52,steelD,0,.84,0,torsoParts);voxel(torsoAnchor,.34,.66,.5,vmat(0xc6cedc,.4,.6),0,.52,.05,torsoParts);voxel(torsoAnchor,.5,.14,.5,steelD,0,.22,0,torsoParts);voxel(torsoAnchor,.5,.1,.48,vmat(0xc9a23a,.5,.5),0,.42,0,torsoParts);}
+  else if(id==='robe'){voxel(torsoAnchor,.68,1.0,.4,cloth2,0,.5,0,torsoParts);voxel(torsoAnchor,.46,.5,.44,cloth,0,.56,.03,torsoParts);voxel(torsoAnchor,.22,.5,.22,vmat(0xe8c84a,.5,.3),0,.46,.18,torsoParts);voxel(torsoAnchor,.78,.34,.44,cloth2,0,.08,0,torsoParts);}
+  else if(id==='bare'){voxel(torsoAnchor,.64,.86,.36,skin,0,.55,0,torsoParts);voxel(torsoAnchor,.52,.34,.36,skin,0,.64,.02,torsoParts);}
+  // 二段手臂(咬合式:上臂往下伸、底端過肘;前臂底端過腕。頂端只微凸,避免舉手時刺進軀幹)
+  [armL,armR].forEach(a=>{
+    voxel(a.shoulder,aw,.52,aw,upM,0,-.24,0,a.upperParts);  // 上臂(頂端≈肩關節,底端過肘咬合)
+    if(id==='plate')voxel(a.shoulder,aw+.12,.2,aw+.12,vmat(0xc6cedc,.4,.6),0,-.04,0,a.upperParts); // 圓肩甲(下移貼肩)
+    voxel(a.elbow,aw*.92,.5,aw*.92,foM,0,-.2,0,a.foreParts); // 前臂(頂端≈肘,底端過腕)
+    voxel(a.hand,aw*1.0,.18,aw*1.0,skin,0,-.05,0,a.foreParts); // 手掌(在腕關節處)
+  });
+}
+
+/* ═══════════ 下身 ═══════════ */
+const pelvisParts=[];
+function buildLower(id){
+  clearGroup(pelvisParts);clearGroup(legL.thighParts);clearGroup(legL.shinParts);clearGroup(legR.thighParts);clearGroup(legR.shinParts);
+  const c1=new THREE.Color(curCol).multiplyScalar(.6);
+  const pants=vmat(c1.getHex()),steel=vmat(0xaab4c4,.45,.5),steelL=vmat(0xc6cedc,.4,.6),boot=vmat(0x3a2a1a),skin=vmat(SKIN);
+  voxel(pelvis,.78,.3,.46,id==='robe'?pants:vmat(c1.clone().multiplyScalar(.9).getHex()),0,-.05,0,pelvisParts); // 髖部(略寬,頂接軀幹底、不上凸)
+  const lw=id==='greaves'?.26:.22;
+  const thM=(id==='greaves')?steel:(id==='skirt'?skin:pants);
+  const shM=(id==='greaves')?steelL:((id==='shorts'||id==='skirt')?skin:pants);
+  if(id==='greaves')voxel(pelvis,.76,.16,.46,steelL,0,-.08,0,pelvisParts);
+  if(id==='skirt'){const sk=new THREE.Mesh(new THREE.CylinderGeometry(.4,.56,.5,8),vmat(curCol));sk.position.y=-.28;sk.castShadow=true;pelvis.add(sk);pelvisParts.push(sk);}
+  [legL,legR].forEach(l=>{
+    voxel(l.hip,lw,.56,lw,thM,0,-.2,0,l.thighParts);   // 大腿(頂端過髖,咬合)
+    if(id==='shorts')voxel(l.hip,lw+.06,.28,lw+.06,pants,0,-.13,0,l.thighParts); // 短褲管
+    voxel(l.knee,lw*.92,.54,lw*.92,shM,0,-.19,0,l.shinParts); // 小腿(頂端過膝)
+    if(id==='greaves')voxel(l.knee,lw+.08,.16,lw+.08,steelL,0,0,0,l.shinParts);  // 護膝方塊
+    voxel(l.foot,lw*1.05,.14,.34,boot,0,-.04,.07,l.shinParts); // 腳掌(往前)
+  });
+}
+
+/* ═══════════ 武器(右手) ═══════════ */
+const weaponParts=[];
+function buildWeapon(id){
+  clearGroup(weaponParts);
+  const steel=vmat(0xd2dae6,.35,.6),wood=vmat(0x6b4a2a),gold=vmat(0xd8b040,.5,.5);
+  // 武器握把在拳中(y≈0),刀身/杖身往 -Y(背離前臂)延伸;rot 微微前傾
+  function attach(fn,rot){const g=new THREE.Group();fn(g);if(rot)g.rotation.set(rot[0]||0,rot[1]||0,rot[2]||0);armR.hand.add(g);weaponParts.push(g);}
+  if(id==='none')return;
+  if(id==='sword')attach(g=>{voxel(g,.12,.22,.12,wood,0,.02,0);voxel(g,.16,.1,.16,gold,0,.14,0);voxel(g,.34,.12,.12,gold,0,-.1,0);voxel(g,.1,.7,.1,steel,0,-.5,0);},[1.15,0,.35]);
+  else if(id==='greatsword')attach(g=>{voxel(g,.14,.3,.14,wood,0,.04,0);voxel(g,.54,.14,.14,gold,0,-.14,0);voxel(g,.12,.36,.12,steel,0,-.4,0);voxel(g,.18,1.1,.07,steel,0,-.92,0);},[1.2,0,.35]);
+  else if(id==='spear')attach(g=>{voxel(g,.08,2.2,.08,wood,0,-.85,0);voxel(g,.16,.16,.16,steel,0,-2.02,0);for(let i=0;i<4;i++)voxel(g,.08,.16,.08,steel,0,-2.16-i*.06,0);},[1.45,0,.12]);
+  else if(id==='bow')attach(g=>{for(let i=-6;i<=6;i++){const a=i/6*1.1;voxel(g,.07,.16,.07,wood,0,Math.sin(a)*.6,Math.cos(a)*.18);}
+    const s=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,.56,.05),new THREE.Vector3(0,-.56,.05)]),new THREE.LineBasicMaterial({color:0xeef4ff}));g.add(s);},[0,0,.3]);
+  else if(id==='staff')attach(g=>{voxel(g,.08,1.5,.08,wood,0,-.55,0);const orb=voxel(g,.26,.26,.26,new THREE.MeshStandardMaterial({color:0x8a5fff,emissive:0x6a3fcc,emissiveIntensity:.8,roughness:.3}),0,-1.4,0);
+    for(let i=0;i<4;i++){const a=i/4*6.283;voxel(g,.08,.08,.08,vmat(0xb89fff,.4),Math.sin(a)*.22,-1.4,Math.cos(a)*.22);}},[1.0,0,.25]);
+  else if(id==='pickaxe')attach(g=>{voxel(g,.09,.9,.09,wood,0,-.4,0);voxel(g,.6,.12,.12,steel,0,-.82,0);voxel(g,.12,.12,.12,steelD0(),-.3,-.76,0);voxel(g,.12,.12,.12,steelD0(),.3,-.76,0);},[1.1,0,.35]);
+  else if(id==='dagger')attach(g=>{voxel(g,.09,.16,.09,wood,0,.04,0);voxel(g,.22,.08,.1,gold,0,-.06,0);voxel(g,.08,.42,.08,steel,0,-.3,0);},[1.1,0,.35]);
+}
+function steelD0(){return vmat(0x9aa4b4,.4,.5);}
+
+/* ═══════════ 頭部 ═══════════ */
+const headParts=[];
+function buildHead(id){
+  clearGroup(headParts);
+  const skin=vmat(SKIN),hair=vmat(0x3a2a1a),steel=vmat(0xc6cedc,.4,.6),cloth=vmat(curCol);
+  voxel(headAnchor,.2,.22,.2,skin,0,-.02,0,headParts);    // 脖子(伸入軀幹,咬合)
+  voxel(headAnchor,.46,.46,.44,skin,0,.28,0,headParts);   // 頭
+  // 眼(嵌入正面)
+  voxel(headAnchor,.09,.09,.02,vmat(0xf4f4f4),-.11,.3,.225,headParts);voxel(headAnchor,.09,.09,.02,vmat(0xf4f4f4),.11,.3,.225,headParts);
+  voxel(headAnchor,.045,.07,.02,vmat(0x303848),-.1,.3,.235,headParts);voxel(headAnchor,.045,.07,.02,vmat(0x303848),.12,.3,.235,headParts);
+  if(id==='hair'){voxel(headAnchor,.5,.14,.48,hair,0,.5,0,headParts);voxel(headAnchor,.5,.24,.12,hair,0,.4,-.22,headParts);voxel(headAnchor,.12,.24,.48,hair,-.25,.36,0,headParts);voxel(headAnchor,.12,.24,.48,hair,.25,.36,0,headParts);}
+  else if(id==='helmet'){voxel(headAnchor,.52,.28,.5,steel,0,.46,0,headParts);voxel(headAnchor,.52,.16,.1,steel,0,.28,.22,headParts);voxel(headAnchor,.08,.34,.5,steel,0,.32,0,headParts);voxel(headAnchor,.1,.2,.1,vmat(0xc04f4f),0,.66,0,headParts);}
+  else if(id==='hood'){voxel(headAnchor,.54,.4,.54,cloth,0,.44,0,headParts);voxel(headAnchor,.56,.54,.16,cloth,0,.34,-.22,headParts);voxel(headAnchor,.3,.3,.14,cloth,0,.2,.22,headParts);}
+  else if(id==='crown'){voxel(headAnchor,.5,.14,.48,hair,0,.5,0,headParts);voxel(headAnchor,.5,.12,.5,vmat(0xd8b040,.5,.5),0,.56,0,headParts);
+    for(let i=0;i<5;i++)voxel(headAnchor,.06,.14,.06,vmat(0xe8c84a,.5,.5),-.18+i*.09,.66,.22,headParts);}
+  else if(id==='bald'){}
+}
+
+/* ═══════════ 套用 ═══════════ */
+const state={head:'hair',upper:'leather',lower:'pants',weapon:'sword',color:0};
+function applyAll(){curCol=COLORS[state.color];buildHead(state.head);buildUpper(state.upper);buildLower(state.lower);buildWeapon(state.weapon);
+  if(typeof goneParts!=='undefined'){goneParts.clear();tagParts();}
+  if(typeof collapsed!=='undefined'){collapsed=false;shattering=false;root.rotation.set(0,0,0);root.position.y=0;}}
+
+/* ═══════════ 動作 ═══════════ */
+let pose='idle',poseT=0;
+function J(g,x,y,z){g.rotation.set(x||0,y||0,z||0);}
+function animate(dt){poseT+=dt;const t=poseT;
+  const rest=()=>{[armL,armR].forEach(a=>{J(a.shoulder,0,0,0);J(a.elbow,0,0,0);});[legL,legR].forEach(l=>{J(l.hip,0,0,0);J(l.knee,0,0,0);});pelvis.position.y=1.0;};
+  if(pose==='idle'){rest();const b=Math.sin(t*1.6);pelvis.position.y=1.0+b*.02;
+    J(armL.shoulder,.06+b*.04,0,.1);J(armL.elbow,-.3,0,0);J(armR.shoulder,.06-b*.04,0,-.1);J(armR.elbow,-.3,0,0);}
+  else if(pose==='walk'){rest();const s=Math.sin(t*3.2),c=Math.cos(t*3.2);
+    J(legL.hip,s*.5,0,0);J(legL.knee,Math.max(0,-s)*.9,0,0);J(legR.hip,-s*.5,0,0);J(legR.knee,Math.max(0,s)*.9,0,0);
+    J(armL.shoulder,-s*.5,0,.06);J(armL.elbow,-.5,0,0);J(armR.shoulder,s*.5,0,-.06);J(armR.elbow,-.5,0,0);pelvis.position.y=1.0+Math.abs(c)*.04;}
+  else if(pose==='wave'){rest();const w=Math.sin(t*7);
+    // 右臂往右側上方舉起,前臂微彎來回揮(繞 Z 軸,不會插進身體)
+    J(armR.shoulder,0,0,2.3+w*.3);J(armR.elbow,-.45,0,0);
+    J(armL.shoulder,.1,0,-.08);J(armL.elbow,-.35,0,0);}
+  else if(pose==='attack'){rest();const k=(Math.sin(t*3)+1)/2;
+    // 過頭往前下劈(繞 X 軸,前臂保持近乎打直,武器在身前)
+    J(armR.shoulder,-2.6+k*2.3,0,0);J(armR.elbow,-.2-k*.2,0,0);
+    J(armL.shoulder,.2,0,.18);J(armL.elbow,-.4,0,0);
+    J(legL.hip,.15,0,0);J(legR.hip,-.2,0,0);J(legR.knee,.3,0,0);}  // 前弓步
+  else if(pose==='tpose'){rest();
+    // 標準 T-pose:雙臂水平外伸、肘腿全直
+    J(armL.shoulder,0,0,-Math.PI/2);J(armL.elbow,0,0,0);
+    J(armR.shoulder,0,0,Math.PI/2);J(armR.elbow,0,0,0);
+    J(legL.hip,0,0,0);J(legL.knee,0,0,0);J(legR.hip,0,0,0);J(legR.knee,0,0,0);}
+  else if(pose==='sit'){rest();pelvis.position.y=.2;        // 屁股貼地,腿平伸在地面
+    J(legL.hip,-1.62,0,.12);J(legL.knee,.12,0,0);J(legR.hip,-1.62,0,-.12);J(legR.knee,.12,0,0);
+    J(armL.shoulder,.6,0,.1);J(armL.elbow,-.2,0,0);J(armR.shoulder,.6,0,-.1);J(armR.elbow,-.2,0,0);}
+}
+
+/* ═══════════ UI ═══════════ */
+const OPTS={
+  head:[['hair','頭髮'],['helmet','頭盔'],['hood','兜帽'],['crown','王冠'],['bald','光頭']],
+  upper:[['tunic','布衣'],['leather','皮甲'],['plate','板甲'],['robe','法袍'],['bare','裸身']],
+  lower:[['pants','長褲'],['greaves','板甲腿'],['skirt','裙甲'],['shorts','短褲']],
+  weapon:[['sword','單手劍'],['greatsword','大劍'],['spear','長槍'],['bow','弓'],['staff','法杖'],['pickaxe','鎬'],['dagger','匕首'],['none','空手']],
+};
+function buildOpts(slot,key){const box=document.getElementById('slot-'+slot);box.innerHTML='';
+  OPTS[key].forEach(([val,label])=>{const b=document.createElement('div');b.className='opt'+(state[key]===val?' on':'');b.textContent=label;
+    b.onclick=()=>{state[key]=val;[...box.children].forEach(c=>c.classList.remove('on'));b.classList.add('on');applyAll();};box.appendChild(b);});}
+function buildAllOpts(){buildOpts('head','head');buildOpts('upper','upper');buildOpts('lower','lower');buildOpts('weapon','weapon');}
+buildAllOpts();
+const colBox=document.getElementById('slot-color');
+COLORS.forEach((c,i)=>{const d=document.createElement('div');d.className='sw-c'+(i===0?' on':'');d.style.background='#'+c.toString(16).padStart(6,'0');
+  d.onclick=()=>{state.color=i;[...colBox.children].forEach(x=>x.classList.remove('on'));d.classList.add('on');applyAll();};colBox.appendChild(d);});
+const POSES=[['idle','待機'],['tpose','T-Pose'],['walk','行走'],['wave','揮手'],['attack','攻擊'],['sit','坐下']];
+const poseBox=document.getElementById('poses');
+POSES.forEach(([val,label])=>{const b=document.createElement('button');b.className=val==='idle'?'on':'';b.textContent=label;
+  b.onclick=()=>{pose=val;poseT=0;[...poseBox.children].forEach(c=>c.classList.remove('on'));b.classList.add('on');};poseBox.appendChild(b);});
+let spin=true;const swSpin=document.getElementById('sw-spin');swSpin.onclick=()=>{spin=!spin;swSpin.classList.toggle('on',spin);};
+const swTex=document.getElementById('sw-tex');swTex.onclick=()=>{useTex=!useTex;swTex.classList.toggle('on',useTex);for(const k in texCache)delete texCache[k];applyAll();};
+document.getElementById('sl-light').oninput=e=>{key.intensity=e.target.value/100*2;};
+document.getElementById('rand').onclick=()=>{for(const k of ['head','upper','lower','weapon']){const a=OPTS[k];state[k]=a[Math.floor(Math.random()*a.length)][0];}
+  state.color=Math.floor(Math.random()*COLORS.length);buildAllOpts();[...colBox.children].forEach((x,i)=>x.classList.toggle('on',i===state.color));applyAll();};
+document.getElementById('shatter').onclick=()=>applyAll();
+
+let drag=false,px=0,py=0,downX=0,downY=0,moved=0;
+renderer.domElement.addEventListener('mousedown',e=>{drag=true;px=e.clientX;py=e.clientY;downX=e.clientX;downY=e.clientY;moved=0;});
+addEventListener('mouseup',e=>{drag=false;
+  // 移動距離小 → 視為點擊命中部位
+  if(moved<6){const p=pickPart(e.clientX,e.clientY);if(p)blowOffPart(p);}});
+addEventListener('mousemove',e=>{if(!drag)return;moved+=Math.abs(e.clientX-px)+Math.abs(e.clientY-py);camYaw-=(e.clientX-px)*.006;camPitch=THREE.MathUtils.clamp(camPitch+(e.clientY-py)*.004,-.3,1.2);px=e.clientX;py=e.clientY;updateCam();});
+renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();camDist=THREE.MathUtils.clamp(camDist+e.deltaY*.006,3.5,14);updateCam();},{passive:false});
+
+/* ═══════════ 部位系統:點擊命中 → 該部位炸飛消失 ═══════════ */
+const updaters=[];
+let shattering=false;
+// 各部位 → 對應的方塊陣列(可被打掉)
+function bodyParts(){return [
+  {name:'頭',group:headParts,joint:headAnchor},
+  {name:'軀幹',group:torsoParts,joint:torsoAnchor,children:['頭','左上臂','右上臂']},
+  {name:'腰',group:pelvisParts,joint:pelvis,children:['左大腿','右大腿']},
+  {name:'左上臂',group:armL.upperParts,joint:armL.shoulder,children:['左前臂']},
+  {name:'左前臂',group:armL.foreParts,joint:armL.elbow},
+  {name:'右上臂',group:armR.upperParts,joint:armR.shoulder,children:['右前臂']},
+  {name:'右前臂',group:armR.foreParts,joint:armR.elbow,children:['武器']},
+  {name:'左大腿',group:legL.thighParts,joint:legL.hip,children:['左小腿']},
+  {name:'左小腿',group:legL.shinParts,joint:legL.knee},
+  {name:'右大腿',group:legR.thighParts,joint:legR.hip,children:['右小腿']},
+  {name:'右小腿',group:legR.shinParts,joint:legR.knee},
+  {name:'武器',group:weaponParts,joint:armR.hand},
+];}
+const goneParts=new Set();   // 已被打掉的部位
+// 把每個 mesh 標記它屬於哪個部位(供 raycast 命中辨識)
+function tagParts(){bodyParts().forEach(p=>p.group.forEach(m=>m.traverse(o=>{o.userData.partName=p.name;})));}
+
+// 炸飛單一部位
+function blowOffPart(p){
+  if(goneParts.has(p.name)||!p.group.length)return;
+  goneParts.add(p.name);
+  // 連帶炸掉下游部位(例如打掉上臂 → 前臂、武器也一起掉)
+  if(p.children){const all=bodyParts();p.children.forEach(cn=>{const cp=all.find(x=>x.name===cn);if(cp&&!goneParts.has(cp.name))blowOffPart(cp);});}
+  const center=new THREE.Vector3();p.joint.getWorldPosition(center);
+  const items=p.group.slice().map(m=>{
+    const wp=new THREE.Vector3();m.getWorldPosition(wp);
+    scene.attach(m);
+    m.traverse(o=>{if(o.isMesh&&o.material){o.material=o.material.clone();}}); // 複製材質,淡出只影響自己
+    let dir=wp.clone().sub(center);if(dir.lengthSq()<.01)dir.set(Math.random()-.5,.5,Math.random()-.5);dir.normalize();
+    const vel=dir.multiplyScalar(2+Math.random()*2).add(new THREE.Vector3((Math.random()-.5)*1.5,2.5+Math.random()*1.5,(Math.random()-.5)*1.5));
+    const spin=new THREE.Vector3((Math.random()-.5)*14,(Math.random()-.5)*14,(Math.random()-.5)*14);
+    return {m,vel,spin};});
+  let t=0;updaters.push(dt=>{t+=dt;
+    items.forEach(it=>{it.vel.y-=16*dt;it.m.position.addScaledVector(it.vel,dt);
+      it.m.rotateX(it.spin.x*dt);it.m.rotateY(it.spin.y*dt);it.m.rotateZ(it.spin.z*dt);
+      if(it.m.position.y<.08){it.m.position.y=.08;it.vel.y*=-.35;it.vel.x*=.7;it.vel.z*=.7;}
+      if(t>1.4)it.m.traverse(o=>{if(o.isMesh&&o.material){o.material.transparent=true;o.material.opacity=Math.max(0,1-(t-1.4)/.5);}});});
+    if(t>=1.9){items.forEach(it=>{scene.remove(it.m);it.m.traverse(o=>{o.geometry&&o.geometry.dispose();});});return false;}
+    return true;});
+  // 斷面血/火花 + 受擊光
+  const col=p.name==='武器'?0xffcf6b:0xb03030;
+  const fl=new THREE.PointLight(col,3,7);fl.position.copy(center);scene.add(fl);
+  let ft=0;updaters.push(dt=>{ft+=dt;fl.intensity=3*Math.max(0,1-ft/.3);if(ft>=.3){scene.remove(fl);return false;}return true;});
+  showHitLabel(p.name);
+  checkSupport();
+}
+let collapsed=false;
+// 支撐結構消失(腰被打掉、或雙腿都沒了)→ 剩餘身體失去支撐而倒下
+function checkSupport(){
+  if(collapsed)return;
+  // 一條腿要能撐地,必須大腿+小腿都在;任一段斷了,該腿就廢
+  const legLok=!goneParts.has('左大腿')&&!goneParts.has('左小腿');
+  const legRok=!goneParts.has('右大腿')&&!goneParts.has('右小腿');
+  const lost = goneParts.has('腰') || (!legLok&&!legRok);  // 腰斷、或兩條腿都廢 → 倒下
+  if(!lost)return;
+  collapsed=true;shattering=true;       // 凍結姿勢動畫
+  const side=Math.random()<.5?1:-1;     // 隨機往前/側倒
+  const dir=Math.random()<.5?'x':'z';
+  let t=0;const dur=.7;const startY=root.position.y;
+  updaters.push(dt=>{t+=dt;const k=Math.min(t/dur,1);const e=k<.85?(k/.85):1;
+    // 繞地面原點傾倒(root 原點在地面)+ 觸地反彈一下
+    const ang=(Math.PI/2*0.95)*e*(dir==='x'?1:side);
+    root.rotation[dir]=ang + (k>.85?Math.sin((k-.85)/.15*Math.PI)*.06:0);
+    root.position.y=startY - 0.0;        // 繞地面轉,不需額外下降
+    if(t>=dur+ .1)return false;return true;});
+  // 倒地塵土
+  const dust=new THREE.PointLight(0x9a8a6a,2,6);dust.position.set(0,.4,0);scene.add(dust);
+  let dt2=0;updaters.push(d=>{dt2+=d;dust.intensity=2*Math.max(0,1-dt2/.4);if(dt2>=.4){scene.remove(dust);return false;}return true;});
+}
+// raycast:點擊命中哪個部位
+const raycaster=new THREE.Raycaster();const mouse=new THREE.Vector2();
+function pickPart(clientX,clientY){
+  const r=renderer.domElement.getBoundingClientRect();
+  mouse.x=((clientX-r.left)/r.width)*2-1;mouse.y=-((clientY-r.top)/r.height)*2+1;
+  raycaster.setFromCamera(mouse,camera);
+  const meshes=[];bodyParts().forEach(p=>{if(goneParts.has(p.name))return;p.group.forEach(m=>m.traverse(o=>{if(o.isMesh)meshes.push(o);}));});
+  const hit=raycaster.intersectObjects(meshes,false);
+  if(hit.length){const name=hit[0].object.userData.partName;return bodyParts().find(p=>p.name===name);}
+  return null;
+}
+function showHitLabel(name){const nm=document.getElementById('hitlabel');if(!nm)return;nm.textContent='💥 '+name+' 被打掉!';nm.style.opacity='1';
+  clearTimeout(showHitLabel._t);showHitLabel._t=setTimeout(()=>nm.style.opacity='0',1200);}
+
+applyAll();tagParts();
+const clock=new THREE.Clock();
+function loop(){requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05);
+  for(let i=updaters.length-1;i>=0;i--)if(!updaters[i](dt))updaters.splice(i,1);
+  if(!shattering)animate(dt);            // 破碎期間凍結姿勢動畫
+  if(spin){camYaw+=dt*.3;updateCam();}renderer.render(scene,camera);}
+loop();
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+</script>
+</body>
+</html>

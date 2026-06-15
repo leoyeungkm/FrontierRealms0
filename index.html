@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FR0 幻想戰紀</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
+    canvas { display: block; width: 100vw; height: 100vh; cursor: crosshair; }
+
+    #hud {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none; user-select: none;
+    }
+
+    /* ── Status bars (bottom center) ── */
+    #bars-container {
+      position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+      width: 260px; display: flex; flex-direction: column; gap: 6px;
+    }
+    .bar-row { display: flex; align-items: center; gap: 8px; }
+    .bar-label { color: #fff; font-size: 12px; width: 24px; text-align: right; text-shadow: 1px 1px 2px #000; flex-shrink: 0; }
+    .bar-bg {
+      flex: 1; height: 13px; background: #222;
+      border-radius: 6px; overflow: hidden; border: 1px solid #444;
+    }
+    .bar-fill { height: 100%; border-radius: 6px; transition: width 0.2s; }
+    #hp-fill  { width: 100%; background: linear-gradient(90deg, #2ecc71, #27ae60); }
+    #pw-fill  { width: 100%; background: linear-gradient(90deg, #3399ff, #0055cc); }
+    #sp-fill  { width: 100%; background: linear-gradient(90deg, #f3c52a, #d4940a); }
+
+    /* ── Skill bar (LMB + slots 1–7) ── */
+    #skill-bar {
+      position: absolute; bottom: 88px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 6px;
+    }
+    .skill-slot {
+      width: 50px; height: 50px; position: relative;
+      background: rgba(0,0,0,0.6); border: 2px solid #555;
+      border-radius: 8px; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; cursor: default;
+    }
+    .skill-slot.ready  { border-color: #888; }
+    .skill-slot.active { border-color: #ffcc00; box-shadow: 0 0 10px #ffcc00; }
+    .skill-slot.casting{ border-color: #88aaff; box-shadow: 0 0 10px #4466ff; animation: pulse-cast 0.4s ease-in-out infinite alternate; }
+    @keyframes pulse-cast { from { box-shadow: 0 0 6px #4466ff; } to { box-shadow: 0 0 16px #88aaff; } }
+    .skill-icon { font-size: 22px; line-height: 1; }
+    .skill-key  { position: absolute; bottom: 2px; right: 5px; font-size: 10px; color: #888; }
+    .skill-pw   { position: absolute; top: 2px; left: 4px; font-size: 9px; color: #66aaff; white-space: nowrap; }
+    .skill-name-sm { font-size: 8px; color: #ccc; text-align: center; line-height: 1.1; max-width: 52px; overflow: hidden; }
+    .skill-cd-overlay {
+      position: absolute; inset: 0; border-radius: 6px;
+      background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: bold; color: #fff;
+      opacity: 0; transition: opacity 0.1s;
+    }
+    .skill-cd-overlay.show { opacity: 1; }
+    /* 武器不符 — 灰色半透明遮罩 */
+    .skill-slot.wrong-weapon { opacity: 0.38; filter: grayscale(0.8); border-color: #444; }
+    .skill-slot.wrong-weapon .skill-pw { color: #666; }
+
+    /* ── Skill Tree Panel ── */
+    #skill-panel {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.82); z-index: 200;
+      flex-direction: column; align-items: center;
+      pointer-events: all; overflow-y: auto; padding: 24px 16px;
+    }
+    #skill-panel h2 { color: #ffe066; font-size: 20px; margin-bottom: 8px; }
+    #sp-display { color: #aad4ff; font-size: 14px; margin-bottom: 12px; }
+    #weapon-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    #weapon-tabs button {
+      padding: 6px 16px; border: 2px solid #555; border-radius: 6px;
+      background: rgba(255,255,255,0.05); color: #ccc; cursor: pointer; font-size: 13px;
+    }
+    #weapon-tabs button.active { border-color: #ffcc00; color: #ffcc00; background: rgba(255,200,0,0.1); }
+    .sk-section-title { color: #88aaff; font-size: 13px; font-weight: bold; width: 100%; max-width: 800px; margin: 10px 0 6px; border-bottom: 1px solid #334; padding-bottom: 4px; }
+    #skill-section-common, #skill-section-weapon {
+      display: flex; flex-wrap: wrap; gap: 8px; width: 100%; max-width: 800px; margin-bottom: 12px;
+    }
+    .sk-card {
+      background: rgba(20,24,40,0.9); border: 1px solid #334;
+      border-radius: 8px; padding: 10px 12px; width: 240px;
+      color: #ccc; font-size: 12px; transition: border-color 0.15s;
+    }
+    .sk-card.learned { border-color: #446; }
+    .sk-top { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 4px; }
+    .sk-icon { font-size: 24px; flex-shrink: 0; }
+    .sk-info { flex: 1; }
+    .sk-name { font-size: 13px; color: #eee; font-weight: bold; }
+    .sk-name small { font-size: 10px; color: #888; }
+    .sk-lv { color: #ffcc00; font-size: 12px; letter-spacing: 1px; }
+    .sk-right { flex-shrink: 0; }
+    .sk-btn-learn {
+      padding: 3px 8px; background: #2244aa; border: 1px solid #44aaff;
+      border-radius: 4px; color: #fff; cursor: pointer; font-size: 11px; white-space: nowrap;
+    }
+    .sk-btn-learn.disabled { background: #333; border-color: #555; color: #777; cursor: not-allowed; pointer-events: none; }
+    .sk-req { color: #ff8866; font-size: 11px; }
+    .sk-maxlv { color: #44ff88; font-size: 11px; }
+    .sk-desc { color: #999; font-size: 11px; margin: 4px 0; }
+    .sk-stats { color: #66aaff; font-size: 11px; margin: 2px 0; }
+    .sk-assign-row { margin-top: 6px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; font-size: 11px; color: #888; }
+    .sk-slot-btn {
+      width: 22px; height: 22px; border: 1px solid #445; border-radius: 4px;
+      background: rgba(255,255,255,0.05); color: #aaa; cursor: pointer; font-size: 11px;
+    }
+    .sk-slot-btn.active { background: #ffcc00; color: #000; border-color: #ffcc00; font-weight: bold; }
+    /* Panel slot bar at bottom */
+    #panel-slot-bar {
+      display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; justify-content: center;
+    }
+    .panel-slot {
+      width: 70px; min-height: 70px; background: rgba(20,24,40,0.9);
+      border: 2px solid #334; border-radius: 8px; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 2px; cursor: pointer; padding: 4px;
+    }
+    .panel-slot.filled { border-color: #446; }
+    .panel-slot:hover { border-color: #ff6644; }
+    .ps-key { font-size: 11px; color: #888; }
+    .ps-icon { font-size: 20px; }
+    .ps-name { font-size: 10px; color: #ccc; text-align: center; line-height: 1.1; }
+    .ps-lv { font-size: 10px; color: #ffcc00; }
+    #panel-close-hint { color: #666; font-size: 12px; margin-top: 8px; }
+
+    /* ── Wave Announce ── */
+    #announce {
+      position: absolute; top: 30%; left: 50%; transform: translateX(-50%);
+      color: #ffe066; font-size: 36px; font-weight: bold;
+      text-shadow: 2px 2px 8px #000, 0 0 20px #ff8800;
+      opacity: 0; transition: opacity 0.5s; white-space: nowrap;
+    }
+
+    /* ── Damage flash ── */
+    #damage-flash {
+      position: absolute; inset: 0; background: rgba(255,0,0,0.35);
+      opacity: 0; pointer-events: none; transition: opacity 0.15s;
+    }
+
+    /* ── Buff flash (golden, Embolden) ── */
+    #buff-flash {
+      position: absolute; inset: 0; background: rgba(255,200,0,0.18);
+      opacity: 0; pointer-events: none; transition: opacity 0.3s;
+    }
+
+    /* ── Status / Connect ── */
+    #status {
+      position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+      color: #aaa; font-size: 14px; text-shadow: 1px 1px 2px #000;
+    }
+
+    /* ── Round Timer ── */
+    #round-timer {
+      position: absolute; top: 16px; right: 20px;
+      text-align: right; color: #fff; text-shadow: 1px 1px 3px #000; line-height: 1.5;
+    }
+    #round-phase     { font-size: 13px; color: #aad4ff; }
+    #round-countdown { font-size: 28px; font-weight: bold; }
+    #round-wave-label{ font-size: 13px; color: #ffe066; }
+
+    /* ── Kill / Tower ── */
+    #kill-display {
+      position: absolute; top: 16px; left: 20px;
+      color: #fff; font-size: 16px; text-shadow: 1px 1px 3px #000;
+    }
+    #building-ui {
+      position: absolute; bottom: 150px; left: 20px;
+      color: rgba(255,255,255,0.8); font-size: 13px;
+      text-shadow: 1px 1px 2px #000; line-height: 1.8;
+    }
+
+    /* ── Hint ── */
+    #hint {
+      position: absolute; bottom: 150px; right: 20px;
+      color: rgba(255,255,255,0.45); font-size: 11px; text-align: right; line-height: 1.7;
+    }
+
+    /* ── Floating Damage Numbers ── */
+    .dmg-num {
+      position: absolute; pointer-events: none;
+      font-weight: bold; text-shadow: 1px 1px 3px #000;
+      transform: translateX(-50%); white-space: nowrap;
+    }
+
+    /* ── Keep bar hit flash ── */
+    @keyframes keep-hit {
+      0%   { box-shadow: 0 0 0 2px #fff, 0 0 8px #fff; border-color: #fff; }
+      40%  { box-shadow: 0 0 0 3px #ff8800, 0 0 14px #ff4400; border-color: #ff8800; }
+      100% { box-shadow: none; border-color: inherit; }
+    }
+    .keep-bar-hit { animation: keep-hit 0.45s ease-out forwards; }
+
+    /* ── Debug Panel ── */
+    #debug-panel {
+      display: none; position: fixed; top: 60px; left: 16px; z-index: 300;
+      background: rgba(10,10,20,0.92); border: 1px solid #446;
+      border-radius: 8px; padding: 12px 16px; min-width: 200px;
+      pointer-events: all; color: #ccc; font-size: 13px;
+    }
+    #debug-panel h3 { color: #ffcc00; font-size: 13px; margin-bottom: 10px; letter-spacing: 1px; }
+    .dbg-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+    .dbg-row label { flex: 1; cursor: pointer; }
+    .dbg-row input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; accent-color: #ffcc00; }
+    .dbg-btn {
+      width: 100%; padding: 5px 0; margin-top: 8px;
+      background: #222; border: 1px solid #556; border-radius: 5px;
+      color: #aaa; cursor: pointer; font-size: 12px;
+    }
+    .dbg-btn:hover { background: #334; color: #fff; }
+    .q-btn.q-on { background: #3a5a2a; border-color: #7fc35a; color: #cfff9a; }
+
+    /* ── 角色外觀面板（O）── */
+    #appearance-panel {
+      display: none; position: fixed; top: 12px; right: 16px; z-index: 300;
+      background: rgba(10,10,20,0.92); border: 1px solid #446;
+      border-radius: 8px; padding: 10px 14px; width: 252px;
+      max-height: calc(100vh - 24px); overflow-y: auto;
+      pointer-events: all; color: #ccc; font-size: 12px;
+      flex-direction: column; gap: 2px;
+    }
+    #appearance-panel::-webkit-scrollbar { width: 6px; }
+    #appearance-panel::-webkit-scrollbar-thumb { background: #446; border-radius: 3px; }
+    #appearance-panel h3 { color: #7fd0ff; font-size: 13px; margin-bottom: 4px; letter-spacing: 1px; }
+    #ap-preview {
+      width: 100%; height: auto; border-radius: 6px;
+      background: radial-gradient(ellipse at 50% 30%, #2c3450 0%, #161a28 75%);
+      border: 1px solid #334;
+    }
+    .ap-note { color: #778; font-size: 10px; margin-top: 2px; line-height: 1.4; }
+    .ap-section { color: #889; font-size: 10px; margin-top: 5px; letter-spacing: 1px; }
+    .ap-btnrow { display: flex; gap: 3px; }
+    .ap-btnrow .dbg-btn { margin-top: 2px; padding: 3px 0; font-size: 11px; }
+    .ap-tints { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px; }
+    .ap-tint {
+      width: 20px; height: 20px; border-radius: 5px; cursor: pointer;
+      border: 2px solid #445; padding: 0;
+    }
+    .ap-tint-on { border-color: #fff; box-shadow: 0 0 6px #7fd0ff; }
+    #ap-close { margin-top: 8px; }
+    #debug-hint {
+      position: fixed; top: 16px; left: 16px; color: rgba(255,255,255,0.3);
+      font-size: 11px; pointer-events: none;
+    }
+    #weapon-display {
+      position: absolute; bottom: 152px; left: 50%; transform: translateX(-50%);
+      color: #ffe066; font-size: 12px; text-shadow: 1px 1px 3px #000;
+      pointer-events: none; white-space: nowrap; letter-spacing: 0.5px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  <div id="hud">
+    <!-- Status bars -->
+    <div id="bars-container">
+      <div class="bar-row">
+        <span class="bar-label">HP</span>
+        <div class="bar-bg"><div class="bar-fill" id="hp-fill"></div></div>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">PW</span>
+        <div class="bar-bg"><div class="bar-fill" id="pw-fill"></div></div>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">SP</span>
+        <div class="bar-bg"><div class="bar-fill" id="sp-fill"></div></div>
+      </div>
+    </div>
+
+    <!-- 當前裝備武器顯示 -->
+    <div id="weapon-display">⚔ 單手劍盾　<span style="color:#aaa;font-size:10px;">[ Tab 換武器 ]</span></div>
+
+    <!-- Skill bar: LMB + slots 1–7 -->
+    <div id="skill-bar">
+      <div class="skill-slot ready" id="slot-lmb">
+        <span class="skill-icon">⚔</span>
+        <span class="skill-key">LMB</span>
+        <div class="skill-cd-overlay" id="cd-lmb"></div>
+      </div>
+      <div class="skill-slot" id="slot-1"><span class="skill-icon">—</span><span class="skill-key">1</span><div class="skill-cd-overlay" id="cd-1"></div></div>
+      <div class="skill-slot" id="slot-2"><span class="skill-icon">—</span><span class="skill-key">2</span><div class="skill-cd-overlay" id="cd-2"></div></div>
+      <div class="skill-slot" id="slot-3"><span class="skill-icon">—</span><span class="skill-key">3</span><div class="skill-cd-overlay" id="cd-3"></div></div>
+      <div class="skill-slot" id="slot-4"><span class="skill-icon">—</span><span class="skill-key">4</span><div class="skill-cd-overlay" id="cd-4"></div></div>
+      <div class="skill-slot" id="slot-5"><span class="skill-icon">—</span><span class="skill-key">5</span><div class="skill-cd-overlay" id="cd-5"></div></div>
+      <div class="skill-slot" id="slot-6"><span class="skill-icon">—</span><span class="skill-key">6</span><div class="skill-cd-overlay" id="cd-6"></div></div>
+      <div class="skill-slot" id="slot-7"><span class="skill-icon">—</span><span class="skill-key">7</span><div class="skill-cd-overlay" id="cd-7"></div></div>
+      <div class="skill-slot" id="slot-8"><span class="skill-icon">—</span><span class="skill-key">8</span><div class="skill-cd-overlay" id="cd-8"></div></div>
+      <div class="skill-slot" id="slot-9"><span class="skill-icon">—</span><span class="skill-key">9</span><div class="skill-cd-overlay" id="cd-9"></div></div>
+    </div>
+
+    <!-- Skill Tree Panel (K to open) -->
+    <div id="skill-panel">
+      <h2>⚔ 戰士技能樹</h2>
+      <div id="sp-display">技能點：<span id="sp-count">40</span> / <span id="sp-max">40</span></div>
+      <div id="weapon-tabs">
+        <button data-weapon="sword_shield">單手劍盾</button>
+        <button data-weapon="greatsword">雙手劍</button>
+        <button data-weapon="polearm">長槍</button>
+      </div>
+      <div class="sk-section-title">── 共通技能 ──</div>
+      <div id="skill-section-common"></div>
+      <div class="sk-section-title" id="weapon-section-title">── 武器技能 ──</div>
+      <div id="skill-section-weapon"></div>
+      <div class="sk-section-title">── 技能欄位（點格子取消裝備）──</div>
+      <div id="panel-slot-bar"></div>
+      <div id="panel-close-hint">按 K 關閉技能樹</div>
+    </div>
+
+    <!-- Dual Keep HP Bars (top center) -->
+    <div style="position:absolute; top:0; left:50%; transform:translateX(-50%);
+      display:flex; gap:12px; padding:6px 16px; align-items:flex-start;">
+      <!-- 藍方主堡 -->
+      <div style="text-align:center; min-width:160px;">
+        <div style="color:#66aaff; font-size:11px; text-shadow:1px 1px 2px #000; margin-bottom:2px;">🏰 藍方主堡</div>
+        <div id="keep-bar-1" style="background:#1a1a1a; border-radius:5px; border:1px solid #446; overflow:hidden; height:14px;">
+          <div id="keep-fill-1" style="height:100%; width:100%;
+            background:linear-gradient(90deg,#2244cc,#4488ff);
+            transition:width 0.4s; border-radius:5px;"></div>
+        </div>
+        <div id="keep-hp-text-1" style="color:#aad4ff; font-size:10px; text-shadow:1px 1px 2px #000;">1000 / 1000</div>
+      </div>
+      <div style="color:#fff; font-size:20px; padding-top:6px; text-shadow:1px 1px 3px #000;">⚔</div>
+      <!-- 紅方主堡 -->
+      <div style="text-align:center; min-width:160px;">
+        <div style="color:#ff6644; font-size:11px; text-shadow:1px 1px 2px #000; margin-bottom:2px;">🏰 紅方主堡</div>
+        <div id="keep-bar-2" style="background:#1a1a1a; border-radius:5px; border:1px solid #644; overflow:hidden; height:14px;">
+          <div id="keep-fill-2" style="height:100%; width:100%;
+            background:linear-gradient(90deg,#cc2200,#ff4422);
+            transition:width 0.4s; border-radius:5px;"></div>
+        </div>
+        <div id="keep-hp-text-2" style="color:#ffaa99; font-size:10px; text-shadow:1px 1px 2px #000;">1000 / 1000</div>
+      </div>
+    </div>
+
+    <div id="announce"></div>
+    <div id="damage-flash"></div>
+    <div id="buff-flash"></div>
+
+    <!-- Debug hint -->
+    <div id="debug-hint">[ P ] 設定 ・ [ O ] 外觀 ・ [ Alt ] 滑鼠/視角</div>
+
+    <!-- Debug Panel (P to toggle) -->
+    <div id="debug-panel">
+      <h3>⚙ 設定 / 測試面板</h3>
+      <div class="dbg-row">
+        <label>畫質</label>
+        <div style="display:flex; gap:4px;">
+          <button class="dbg-btn q-btn" data-q="low"  style="width:auto; padding:4px 10px; margin:0;">低</button>
+          <button class="dbg-btn q-btn" data-q="mid"  style="width:auto; padding:4px 10px; margin:0;">中</button>
+          <button class="dbg-btn q-btn" data-q="high" style="width:auto; padding:4px 10px; margin:0;">高</button>
+        </div>
+      </div>
+      <div class="dbg-row">
+        <label for="dbg-infinite-pw">無限 PW</label>
+        <input type="checkbox" id="dbg-infinite-pw">
+      </div>
+      <div class="dbg-row">
+        <label for="dbg-one-hit">一擊必殺</label>
+        <input type="checkbox" id="dbg-one-hit">
+      </div>
+      <div class="dbg-row">
+        <label for="dbg-no-cd">技能無 CD</label>
+        <input type="checkbox" id="dbg-no-cd">
+      </div>
+      <button class="dbg-btn" id="dbg-unlock-skills">🔓 解鎖全技能 (測試)</button>
+      <button class="dbg-btn" id="dbg-reset-sp">重置技能點 (40pt)</button>
+      <button class="dbg-btn" id="dbg-full-hp">HP 回滿</button>
+    </div>
+
+    <!-- 角色外觀面板 (O to toggle) -->
+    <div id="appearance-panel">
+      <h3>👤 角色外觀</h3>
+      <canvas id="ap-preview" width="240" height="165"></canvas>
+      <div class="ap-note">外觀與技能完全獨立 — 技能組由武器決定（Tab 切換）</div>
+      <div class="ap-section">身形</div>
+      <div class="ap-btnrow">
+        <button class="dbg-btn ap-model" data-m="knight">騎士</button>
+        <button class="dbg-btn ap-model" data-m="barbarian">蠻族</button>
+        <button class="dbg-btn ap-model" data-m="rogue">遊俠</button>
+      </div>
+      <div class="ap-section">服裝染色（染裝不染膚）</div>
+      <div class="ap-tints">
+        <button class="ap-tint" data-t="null"    style="background:linear-gradient(135deg,#888 49%,#fff 51%);" title="原色"></button>
+        <button class="ap-tint" data-t="14711402" style="background:#e07a6a;" title="緋紅"></button>
+        <button class="ap-tint" data-t="7250656"  style="background:#6ea2e0;" title="湛藍"></button>
+        <button class="ap-tint" data-t="8700016"  style="background:#84c070;" title="森綠"></button>
+        <button class="ap-tint" data-t="11045592" style="background:#a88ad8;" title="紫晶"></button>
+        <button class="ap-tint" data-t="14598250" style="background:#dec06a;" title="琥珀"></button>
+        <button class="ap-tint" data-t="9342614"  style="background:#8e8e96;" title="玄灰"></button>
+        <button class="ap-tint" data-t="15921906" style="background:#f2f2f2;" title="雪白"></button>
+      </div>
+      <div class="ap-section">頭部</div>
+      <div class="ap-btnrow">
+        <button class="dbg-btn ap-part" data-part="head" data-v="none">無</button>
+        <button class="dbg-btn ap-part" data-part="head" data-v="knight">騎士盔</button>
+        <button class="dbg-btn ap-part" data-part="head" data-v="barbarian">蠻帽</button>
+        <button class="dbg-btn ap-part" data-part="head" data-v="hood">兜帽</button>
+      </div>
+      <div class="ap-section">身體</div>
+      <div class="ap-btnrow">
+        <button class="dbg-btn ap-part" data-part="body" data-v="knight">騎士甲</button>
+        <button class="dbg-btn ap-part" data-part="body" data-v="barbarian">蠻族衣</button>
+        <button class="dbg-btn ap-part" data-part="body" data-v="rogue">遊俠裝</button>
+      </div>
+      <div class="ap-section">手部</div>
+      <div class="ap-btnrow">
+        <button class="dbg-btn ap-part" data-part="arms" data-v="knight">騎士臂甲</button>
+        <button class="dbg-btn ap-part" data-part="arms" data-v="barbarian">蠻族臂</button>
+        <button class="dbg-btn ap-part" data-part="arms" data-v="rogue">遊俠袖</button>
+      </div>
+      <div class="ap-section">腳部</div>
+      <div class="ap-btnrow">
+        <button class="dbg-btn ap-part" data-part="legs" data-v="knight">騎士腿甲</button>
+        <button class="dbg-btn ap-part" data-part="legs" data-v="barbarian">蠻族褲</button>
+        <button class="dbg-btn ap-part" data-part="legs" data-v="rogue">遊俠靴</button>
+      </div>
+      <div class="ap-section">背部（披風）</div>
+      <div class="ap-btnrow">
+        <button class="dbg-btn ap-part" data-part="cape" data-v="none">無</button>
+        <button class="dbg-btn ap-part" data-part="cape" data-v="knight">騎士</button>
+        <button class="dbg-btn ap-part" data-part="cape" data-v="barbarian">蠻族</button>
+        <button class="dbg-btn ap-part" data-part="cape" data-v="rogue">遊俠</button>
+      </div>
+      <div class="ap-section">雙手武器外觀</div>
+      <div class="ap-btnrow">
+        <button class="dbg-btn ap-gs" data-g="sword">大劍</button>
+        <button class="dbg-btn ap-gs" data-g="axe">戰斧</button>
+      </div>
+      <button class="dbg-btn" id="ap-close">關閉（O）</button>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="gameover-screen" style="display:none; position:absolute; inset:0;
+      background:rgba(0,0,0,0.88); flex-direction:column;
+      align-items:center; justify-content:center; pointer-events:none;">
+      <div id="gameover-title" style="font-size:68px; font-weight:bold;
+        text-shadow:0 0 30px currentColor, 2px 2px 10px #000; color:#ff2222;">💀 主堡陷落</div>
+      <div id="gameover-sub" style="color:#ffaa44; font-size:24px; margin-top:16px;
+        text-shadow:1px 1px 4px #000;">敵軍已佔領您的城堡</div>
+      <div style="color:#aaa; font-size:16px; margin-top:24px;
+        text-shadow:1px 1px 2px #000;">按 F5 重新開始</div>
+    </div>
+
+    <!-- Death Screen -->
+    <div id="death-screen" style="display:none; position:absolute; inset:0;
+      background:rgba(0,0,0,0.78); flex-direction:column;
+      align-items:center; justify-content:center; pointer-events:none;">
+      <div style="color:#ff4444; font-size:54px; font-weight:bold;
+        text-shadow:0 0 20px #ff0000, 2px 2px 8px #000;">你陣亡了</div>
+      <div id="respawn-cd" style="color:#cccccc; font-size:22px;
+        margin-top:14px; text-shadow:1px 1px 4px #000;"></div>
+    </div>
+    <div id="status">連線中...</div>
+    <div id="team-display" style="position:absolute; top:16px; left:50%; transform:translateX(-50%);
+      color:#fff; font-size:13px; text-shadow:1px 1px 3px #000; margin-top:52px;"></div>
+    <div id="kill-display">擊殺: <span id="kill-count">0</span></div>
+    <div id="building-ui">
+      💎 <span id="crystal-count">0</span> / 50 水晶<br>
+      箭塔剩餘: <span id="tower-count">3</span>
+    </div>
+
+    <!-- Build Menu -->
+    <div id="build-menu" style="display:none; position:absolute; bottom:210px; left:50%;
+      transform:translateX(-50%); background:rgba(10,10,20,0.92);
+      border:1px solid #556; border-radius:12px; padding:16px 28px;
+      flex-direction:column; align-items:center; gap:10px;
+      color:#fff; text-shadow:1px 1px 3px #000; pointer-events:none; min-width:260px;">
+      <div style="font-size:16px; color:#ffe066; font-weight:bold; letter-spacing:2px;">⚒ 建造選單</div>
+      <div style="font-size:14px; width:100%; text-align:left;">[1] 箭塔 &mdash; <span style="color:#44aaff;">18 💎</span></div>
+      <div style="font-size:14px; width:100%; text-align:left;">[2] 方尖塔 Obelisk &mdash; <span style="color:#44aaff;">12 💎</span> <span style="font-size:11px; color:#aaa;">（擴張影響範圍）</span></div>
+      <div style="font-size:12px; color:#888; margin-top:4px;">[B / Esc] 取消</div>
+    </div>
+
+    <!-- Summon Menu -->
+    <div id="summon-menu" style="display:none; position:absolute; bottom:210px; left:50%;
+      transform:translateX(-50%); background:rgba(5,0,18,0.94);
+      border:1px solid #779; border-radius:12px; padding:16px 28px;
+      flex-direction:column; align-items:center; gap:10px;
+      color:#fff; text-shadow:1px 1px 3px #000; pointer-events:none; min-width:310px;">
+      <div style="font-size:16px; color:#cc88ff; font-weight:bold; letter-spacing:2px;">⚗ 召喚選單</div>
+      <div style="font-size:13px; width:100%; text-align:left;">[1] 騎士 Knight &mdash; <span style="color:#44aaff;">30 💎</span> <span style="font-size:11px;color:#aaa;">HP 300 · 重裝近戰</span></div>
+      <div style="font-size:13px; width:100%; text-align:left;">[2] 巨人 Giant &mdash; <span style="color:#44aaff;">50 💎</span> <span style="font-size:11px;color:#aaa;">HP 600 · 超重衝撞</span></div>
+      <div style="font-size:13px; width:100%; text-align:left;">[3] 幽魂 Wraith &mdash; <span style="color:#44aaff;">40 💎</span> <span style="font-size:11px;color:#aaa;">HP 180 · 高速穿刺</span></div>
+      <div style="font-size:12px; color:#888; margin-top:4px;">[G / Esc] 取消</div>
+    </div>
+
+    <!-- Summon HP bar (shown when summoned) -->
+    <div id="summon-status" style="display:none; position:absolute; bottom:170px; left:50%;
+      transform:translateX(-50%); text-align:center; pointer-events:none;">
+      <div id="summon-name" style="color:#cc88ff; font-size:13px; font-weight:bold;
+        text-shadow:1px 1px 3px #000; margin-bottom:3px;"></div>
+      <div style="background:#110a22; border-radius:4px; border:1px solid #558; overflow:hidden; height:9px; width:200px;">
+        <div id="summon-hp-fill" style="height:100%; width:100%;
+          background:linear-gradient(90deg,#7711cc,#cc55ff);
+          transition:width 0.15s; border-radius:4px;"></div>
+      </div>
+      <div id="summon-hp-text" style="color:#bb88ff; font-size:10px; margin-top:2px; text-shadow:1px 1px 2px #000;"></div>
+    </div>
+
+    <div id="round-timer">
+      <div id="round-wave-label">第 - 波</div>
+      <div id="round-countdown">--:--</div>
+      <div id="round-phase">等待連線</div>
+    </div>
+    <div id="hint">
+      WASD 移動（面向準心）· Shift 衝刺<br>
+      Space 跳躍 · Q/E 側閃 · C 採礦<br>
+      LMB 橫掃 · 滾輪↑縱劈 · 滾輪↓突刺<br>
+      1-9 技能 · Tab 換武器 · B 建造 · G 召喚
+    </div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

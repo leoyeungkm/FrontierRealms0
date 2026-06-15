@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FEZ 技能特效 — 動作強化版</title>
+<style>
+  :root{--steel:#c9d6e3;--gold:#ffcf6b;--cyan:#5fd0ff;--ink:#0a0e16;
+    --panel:rgba(14,20,32,.85);--line:rgba(140,170,210,.22)}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:var(--ink);
+    font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;color:#e7eef7}
+  #app{position:fixed;inset:0}canvas{display:block}
+  #panel{position:fixed;top:14px;left:14px;width:254px;max-height:calc(100vh - 28px);
+    overflow-y:auto;background:var(--panel);backdrop-filter:blur(10px);
+    border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:0 10px 40px rgba(0,0,0,.55)}
+  #panel h1{font-size:14px;letter-spacing:.05em;color:var(--gold);text-shadow:0 0 12px rgba(255,207,107,.4);margin-bottom:2px}
+  .sub{font-size:11px;color:#8fa6c0;margin-bottom:11px}
+  .group{margin-bottom:10px}
+  .lbl{font-size:10px;letter-spacing:.13em;text-transform:uppercase;margin:0 0 6px 2px;font-weight:700;display:flex;align-items:center;gap:6px}
+  .lbl .dot{width:9px;height:9px;border-radius:50%;box-shadow:0 0 8px currentColor}
+  .btn{display:flex;align-items:center;gap:8px;width:100%;text-align:left;
+    background:rgba(40,54,78,.5);border:1px solid var(--line);color:#dce8f5;
+    padding:6px 9px;border-radius:8px;font-size:12px;cursor:pointer;margin-bottom:4px;transition:.12s;font-family:inherit}
+  .btn:hover{background:rgba(64,86,124,.7);transform:translateX(2px)}
+  .btn .ico{font-size:14px;width:16px;text-align:center}
+  .btn .meta{margin-left:auto;font-size:9px;color:#7f99b8}
+  .tag-stun{color:var(--gold)}.tag-kb{color:var(--cyan)}.tag-fl{color:#b9c8da}
+  .btn-reset{justify-content:center;background:rgba(120,60,60,.45);border-color:rgba(220,140,140,.4)}
+  .btn-reset:hover{background:rgba(150,72,72,.65)}
+  #lvrow{display:flex;gap:5px;margin:2px 0 12px}
+  #lvrow button{flex:1;background:rgba(40,54,78,.5);border:1px solid var(--line);
+    color:#cfe0f2;border-radius:6px;padding:5px 0;font-size:11px;cursor:pointer;font-family:inherit}
+  #lvrow button.on{background:linear-gradient(180deg,#3a6fb0,#27508a);border-color:#6ba2dd;color:#fff}
+  .tog{display:flex;align-items:center;justify-content:space-between;background:rgba(40,54,78,.4);
+    border:1px solid var(--line);border-radius:7px;padding:6px 9px;margin-bottom:4px;font-size:11.5px;cursor:pointer}
+  .tog .sw{width:34px;height:18px;border-radius:9px;background:#33405a;position:relative;transition:.15s}
+  .tog .sw::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#8295ad;transition:.15s}
+  .tog.on .sw{background:linear-gradient(90deg,#2f8fd0,#27c0a8)}
+  .tog.on .sw::after{left:18px;background:#fff}
+  .row{display:flex;align-items:center;gap:8px;font-size:11px;color:#9fb6d0;margin:5px 2px}.row input{flex:1}
+  #now{position:fixed;top:18px;right:18px;text-align:right;pointer-events:none}
+  #now .nm{font-size:22px;font-weight:700;color:#fff;text-shadow:0 0 16px rgba(120,180,255,.6)}
+  #now .ph{font-size:11px;letter-spacing:.2em;text-transform:uppercase;margin-top:2px}
+  .ph-windup{color:var(--gold)}.ph-active{color:var(--cyan)}.ph-recovery{color:#7f99b8}
+  #hint{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);background:var(--panel);
+    border:1px solid var(--line);border-radius:9px;padding:7px 15px;font-size:11.5px;color:#9fb6d0;backdrop-filter:blur(8px)}
+  #hint b{color:var(--steel)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="panel">
+  <h1>⚔ FEZ 技能特效 · 動作版</h1>
+  <div class="sub">手臂關節動畫 · 三系武器</div>
+  <div class="group">
+    <button class="btn btn-reset" id="btn-reset">↻ 重置敵人位置</button>
+    <div class="tog on" id="tog-bloom"><span>Bloom 光暈</span><span class="sw"></span></div>
+    <div class="tog on" id="tog-flip"><span>Flipbook 序列幀</span><span class="sw"></span></div>
+    <div class="row"><span>光暈</span><input type="range" id="sl-bloom" min="0" max="150" value="65"></div>
+    <div class="row"><span>曝光</span><input type="range" id="sl-exp" min="60" max="160" value="100"></div>
+  </div>
+  <div id="lvrow"><button data-lv="0">Lv1</button><button data-lv="1">Lv2</button><button data-lv="2" class="on">Lv3</button></div>
+  <div class="group" id="g-common"><div class="lbl" style="color:#ffcf6b"><span class="dot"></span>共通</div></div>
+  <div class="group" id="g-sword_shield"><div class="lbl" style="color:#7fc8ff"><span class="dot"></span>單手劍盾</div></div>
+  <div class="group" id="g-greatsword"><div class="lbl" style="color:#ffa336"><span class="dot"></span>雙手劍</div></div>
+  <div class="group" id="g-polearm"><div class="lbl" style="color:#66e6a6"><span class="dot"></span>長槍</div></div>
+</div>
+<div id="now"><div class="nm">—</div><div class="ph"></div></div>
+<div id="hint">點技能 · <b>拖曳</b>轉視角 · <b>滾輪</b>縮放 · 武器與動作會跟技能切換</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const SKILL_DEFS={
+  embolden:{nameZh:'堅毅',icon:'✨',weapon:'common',windup:.2,kind:'buff'},
+  reinforce_guard:{nameZh:'強化防禦',icon:'🛡',weapon:'common',windup:.3,kind:'buff'},
+  tackle:{nameZh:'衝撞',icon:'⚡',weapon:'common',windup:.1,kind:'dash',
+    lv:[{range:5,hitstun:'knockback'},{range:7,hitstun:'knockback'},{range:8,hitstun:'knockback'}]},
+  shield_bash:{nameZh:'盾擊',icon:'🛡',weapon:'sword_shield',windup:.25,kind:'cone',swing:'bash',
+    lv:[{range:2,halfAngleCos:.707,hitstun:'stun'},{range:2,halfAngleCos:.707,hitstun:'stun'},{range:2,halfAngleCos:.707,hitstun:'stun'}]},
+  smash:{nameZh:'重擊',icon:'💥',weapon:'sword_shield',windup:.12,kind:'cone',
+    lv:[{range:2,halfAngleCos:.866,hitstun:'flinch'},{range:2,halfAngleCos:.866,hitstun:'flinch'},{range:2,halfAngleCos:.866,hitstun:'flinch'}]},
+  smash_2:{nameZh:'連續重擊',icon:'💢',weapon:'sword_shield',windup:.12,kind:'cone',hits:2,
+    lv:[{range:2,halfAngleCos:.866,hitstun:'flinch'},{range:2,halfAngleCos:.866,hitstun:'flinch'},{range:2,halfAngleCos:.866,hitstun:'flinch'}]},
+  force_impact:{nameZh:'衝擊波',icon:'🌊',weapon:'sword_shield',windup:.4,kind:'projectile',
+    lv:[{range:8,hitstun:'knockback'},{range:10,hitstun:'knockback'},{range:12,hitstun:'knockback'}]},
+  sonic_boom:{nameZh:'音速波',icon:'💨',weapon:'sword_shield',windup:.3,kind:'wave',
+    lv:[{range:9,aoeWidth:2,hitstun:'flinch'},{range:12,aoeWidth:2,hitstun:'flinch'},{range:15,aoeWidth:2,hitstun:'flinch'}]},
+  behemoths_tail:{nameZh:'巨獸尾擊',icon:'🐉',weapon:'greatsword',windup:.35,kind:'cone',hits:4,
+    lv:[{range:3,halfAngleCos:0,hitstun:'flinch'},{range:3,halfAngleCos:0,hitstun:'flinch'},{range:3,halfAngleCos:0,hitstun:'flinch'}]},
+  heavy_smash:{nameZh:'重型重擊',icon:'⚒',weapon:'greatsword',windup:.3,kind:'cone',
+    lv:[{range:3,halfAngleCos:.5,hitstun:'flinch'},{range:3,halfAngleCos:.5,hitstun:'flinch'},{range:3,halfAngleCos:.5,hitstun:'flinch'}]},
+  crumble_storm:{nameZh:'碎裂風暴',icon:'🌪',weapon:'greatsword',windup:.5,kind:'self_aoe',
+    lv:[{aoeRadius:4,hitstun:'knockback'},{aoeRadius:4,hitstun:'knockback'},{aoeRadius:4,hitstun:'knockback'}]},
+  cleave:{nameZh:'劈斬',icon:'⚔',weapon:'greatsword',windup:.4,kind:'cone',
+    lv:[{range:3,halfAngleCos:.5,hitstun:'flinch'},{range:3,halfAngleCos:.5,hitstun:'flinch'},{range:3,halfAngleCos:.5,hitstun:'flinch'}]},
+  slam_attack:{nameZh:'重墜攻擊',icon:'🔨',weapon:'greatsword',windup:.45,kind:'point_aoe',swing:'chop',
+    lv:[{aoeRadius:3,hitstun:'knockback'},{aoeRadius:3,hitstun:'knockback'},{aoeRadius:3,hitstun:'knockback'}]},
+  lance_sweep:{nameZh:'長槍橫掃',icon:'🔱',weapon:'polearm',windup:.25,kind:'cone',
+    lv:[{range:3.5,halfAngleCos:.5,hitstun:'flinch'},{range:3.5,halfAngleCos:.5,hitstun:'flinch'},{range:3.5,halfAngleCos:.5,hitstun:'flinch'}]},
+  lance_charge:{nameZh:'長槍突刺',icon:'🏹',weapon:'polearm',windup:.2,kind:'dash',swing:'thrust',
+    lv:[{range:4,hitstun:'flinch'},{range:5,hitstun:'flinch'},{range:6,hitstun:'flinch'}]},
+  big_step:{nameZh:'大步突進',icon:'🦘',weapon:'polearm',windup:.3,kind:'dash_aoe',swing:'thrust',
+    lv:[{dashRange:3,aoeRadius:2,hitstun:'knockback'},{dashRange:4,aoeRadius:2.5,hitstun:'knockback'},{dashRange:5,aoeRadius:3,hitstun:'knockback'}]},
+  whirlwind_lance:{nameZh:'風暴長槍',icon:'🌀',weapon:'polearm',windup:.4,kind:'self_aoe',hits:3,swing:'spin',
+    lv:[{aoeRadius:4,hitstun:'flinch'},{aoeRadius:4,hitstun:'flinch'},{aoeRadius:4,hitstun:'flinch'}]},
+};
+const FX={bloom:true,flip:true};
+const FACING=Math.PI;
+// 每招專屬動作
+const SWING_MAP={
+  shield_bash:'bash', smash:'chop_quick', smash_2:'slash2', force_impact:'thrust', sonic_boom:'sweep',
+  behemoths_tail:'gs_sweep', heavy_smash:'chop', crumble_storm:'spin', cleave:'diag', slam_attack:'slam',
+  lance_sweep:'pl_sweep', lance_charge:'pl_thrust', big_step:'pl_leap', whirlwind_lance:'pl_spin',
+  tackle:'shoulder', embolden:'raise', reinforce_guard:'guard',
+};
+// 這些技能會真正移動到新位置（不彈回）
+const RELOCATE=new Set(['cleave','lance_charge','big_step','tackle']);
+const SW=.9; // 出招動作總長（放慢）
+// 每招「揮到位」的時間點（佔出招比例），特效在此刻才觸發
+const IMPACT={slash:.55,slash2:.55,chop_quick:.6,chop:.66,diag:.64,gs_sweep:.5,sweep:.5,
+  thrust:.58,leap_thrust:.6,slam:.72,bash:.62,spin:.45,shoulder:.52,
+  pl_sweep:.5,pl_thrust:.6,pl_leap:.62,pl_spin:.45,raise:.2,guard:.2};
+
+/* ════════ 場景 ════════ */
+const app=document.getElementById('app');
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x0f1626);scene.fog=new THREE.Fog(0x0f1626,18,48);
+const camera=new THREE.PerspectiveCamera(50,innerWidth/innerHeight,0.1,200);
+let camYaw=.5,camPitch=.55,camDist=13;
+function updateCam(){camera.position.set(Math.sin(camYaw)*Math.cos(camPitch)*camDist,
+  Math.sin(camPitch)*camDist,Math.cos(camYaw)*Math.cos(camPitch)*camDist);camera.lookAt(0,1.2,-1.5);}
+updateCam();
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.toneMapping=THREE.NoToneMapping;app.appendChild(renderer.domElement);
+const sun=new THREE.DirectionalLight(0xffead0,2.1);sun.position.set(8,14,6);sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-15;sun.shadow.camera.right=15;
+sun.shadow.camera.top=15;sun.shadow.camera.bottom=-15;sun.shadow.bias=-.0004;scene.add(sun);
+scene.add(new THREE.HemisphereLight(0x88bbff,0x47502f,.5));
+const ground=new THREE.Mesh(new THREE.CircleGeometry(40,48),new THREE.MeshStandardMaterial({color:0x556e44,roughness:1}));
+ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
+for(let r=2;r<=8;r+=2){const ring=new THREE.Mesh(new THREE.RingGeometry(r-.03,r+.03,64),
+  new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:.08}));ring.rotation.x=-Math.PI/2;ring.position.y=.01;scene.add(ring);}
+
+/* ════════ 玩家骨架（上半身 + 雙臂關節）════════ */
+const player=new THREE.Group();
+const skin=new THREE.MeshStandardMaterial({color:0x3f6fb0,roughness:.7,metalness:.15});
+const metal=new THREE.MeshStandardMaterial({color:0xc2cdda,roughness:.35,metalness:.7});
+function box(w,h,d,m,y){const x=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);x.position.y=y;x.castShadow=true;return x;}
+const legM=new THREE.MeshStandardMaterial({color:0x2a3550,roughness:.8});
+const legR=box(.24,.7,.24,legM,.45);legR.position.x=.18;player.add(legR);
+const legL=box(.24,.7,.24,legM,.45);legL.position.x=-.18;player.add(legL);
+
+// 上半身樞紐（腰部）
+const upper=new THREE.Group();upper.position.set(0,.95,0);player.add(upper);
+upper.add(box(.7,.9,.4,skin,.30));                              // 軀幹
+upper.add(box(.42,.42,.42,new THREE.MeshStandardMaterial({color:0xe8c9a0,roughness:.8}),.97)); // 頭
+
+// 右臂樞紐（肩）
+const armRPivot=new THREE.Group();armRPivot.position.set(.48,.62,0);armRPivot.rotation.x=-.3;upper.add(armRPivot);
+armRPivot.add(box(.2,.7,.2,skin,-.35));
+// 左臂樞紐（肩）
+const armLPivot=new THREE.Group();armLPivot.position.set(-.48,.62,0);armLPivot.rotation.x=-.2;upper.add(armLPivot);
+armLPivot.add(box(.2,.7,.2,skin,-.35));
+
+const ARM_R0=-.3,ARM_L0=-.2;
+
+// 三組武器 → 掛在右臂手部
+function weaponGroup(meshes){const g=new THREE.Group();meshes.forEach(m=>g.add(m));
+  g.position.set(0,-.62,.05);g.userData.blade=meshes.find(m=>m.userData.blade)?.material;
+  g.visible=false;armRPivot.add(g);return g;}
+const swBlade=box(.1,1.0,.1,metal,.5);swBlade.userData.blade=true;
+const swGroup=weaponGroup([swBlade,box(.32,.1,.1,metal,0)]);
+swGroup.rotation.x=.9; // 刀身前傾朝上前方（待勢），不穿手臂也不戳地
+const gsBlade=box(.2,1.65,.07,metal,.82);gsBlade.userData.blade=true;
+const gsGroup=weaponGroup([gsBlade,box(.5,.12,.12,metal,0)]);
+const plShaft=new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,2.6,8),new THREE.MeshStandardMaterial({color:0x6b4a2a,roughness:.85}));
+plShaft.position.y=.55;plShaft.castShadow=true;
+const plHead=new THREE.Mesh(new THREE.ConeGeometry(.12,.5,8),metal);plHead.position.y=2.05;plHead.userData.blade=true;plHead.castShadow=true;
+const plButt=new THREE.Mesh(new THREE.CylinderGeometry(.06,.06,.18,8),metal);plButt.position.y=-.8;
+const plGroup=weaponGroup([plShaft,plHead,plButt]);
+plGroup.rotation.x=1.9; // 配合 pl_ 動作:手臂休息角(-0.3)時槍頭正好水平朝前
+const WEAPON_GROUPS={sword_shield:swGroup,greatsword:gsGroup,polearm:plGroup};
+
+// 盾 → 掛在左臂手部
+const shield=new THREE.Mesh(new THREE.BoxGeometry(.52,.64,.08),
+  new THREE.MeshStandardMaterial({color:0x8b3a3a,roughness:.5,metalness:.3}));
+shield.position.set(0,-.5,.18);shield.castShadow=true;shield.visible=false;armLPivot.add(shield);
+
+scene.add(player);player.position.set(0,0,0);player.rotation.y=FACING;player.userData.facing=FACING;
+const playerBase=new THREE.Vector3(0,0,0); // 角色實際立足點（位移後會更新）
+
+let currentWeaponType='sword_shield',currentWeaponGroup=swGroup;
+function setWeapon(w){if(!WEAPON_GROUPS[w])return;for(const k in WEAPON_GROUPS)WEAPON_GROUPS[k].visible=false;
+  shield.visible=(w==='sword_shield');WEAPON_GROUPS[w].visible=true;currentWeaponType=w;currentWeaponGroup=WEAPON_GROUPS[w];}
+setWeapon('sword_shield');
+
+/* 假人（含 home 供重置）*/
+const dummies=[];
+function makeDummy(x,z){const g=new THREE.Group();
+  const b=box(.6,1.4,.4,new THREE.MeshStandardMaterial({color:0x9a4040,roughness:.7}),1);
+  const h=box(.4,.4,.4,new THREE.MeshStandardMaterial({color:0xd0a080,roughness:.8}),1.7);
+  g.add(b,h);g.position.set(x,0,z);scene.add(g);
+  g.userData={hitMat:[b.material,h.material],kbT:0,kbDir:new THREE.Vector3(),home:new THREE.Vector3(x,0,z)};dummies.push(g);}
+makeDummy(0,-1.7);makeDummy(-1.1,-2.1);makeDummy(1.1,-2.1);makeDummy(.2,-3.4);
+function resetDummies(){dummies.forEach(d=>{d.userData.kbT=0;const from=d.position.clone(),to=d.userData.home;
+  let t=0;const dur=.35;addEffect({update(dt){t+=dt;const k=Math.min(t/dur,1);
+    d.position.lerpVectors(from,to,k);if(t>=dur){d.position.copy(to);return false;}return true;}});});}
+
+/* ════════ 後處理 ════════ */
+const QV=`varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}`;
+function fsMat(f,u){return new THREE.ShaderMaterial({uniforms:u,vertexShader:QV,fragmentShader:f,depthTest:false,depthWrite:false});}
+class Post{constructor(r,w,h){this.r=r;const o={minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter};
+  this.sceneRT=new THREE.WebGLRenderTarget(w,h,o);const bw=w>>1,bh=h>>1;
+  this.brightRT=new THREE.WebGLRenderTarget(bw,bh,o);this.blurA=new THREE.WebGLRenderTarget(bw,bh,o);this.blurB=new THREE.WebGLRenderTarget(bw,bh,o);
+  this.qS=new THREE.Scene();this.qC=new THREE.Camera();this.quad=new THREE.Mesh(new THREE.PlaneGeometry(2,2));this.qS.add(this.quad);
+  this.bright=fsMat(`uniform sampler2D t;uniform float thr;varying vec2 vUv;void main(){vec3 c=texture2D(t,vUv).rgb;
+    float l=dot(c,vec3(.299,.587,.114));gl_FragColor=vec4(c*smoothstep(thr,thr+.35,l),1.);}`,{t:{value:null},thr:{value:.72}});
+  this.blur=fsMat(`uniform sampler2D t;uniform vec2 dir;uniform vec2 res;varying vec2 vUv;void main(){vec2 px=dir/res;
+    vec3 s=texture2D(t,vUv).rgb*.227;s+=texture2D(t,vUv+px*1.384).rgb*.316;s+=texture2D(t,vUv-px*1.384).rgb*.316;
+    s+=texture2D(t,vUv+px*3.231).rgb*.07;s+=texture2D(t,vUv-px*3.231).rgb*.07;gl_FragColor=vec4(s,1.);}`,
+    {t:{value:null},dir:{value:new THREE.Vector2()},res:{value:new THREE.Vector2(bw,bh)}});
+  this.comp=fsMat(`uniform sampler2D tScene;uniform sampler2D tBloom;uniform float bloomStr;uniform float exposure;
+    uniform float sat;uniform float contrast;uniform vec3 tint;uniform float vig;uniform float useBloom;varying vec2 vUv;
+    vec3 aces(vec3 x){return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.);}
+    void main(){vec3 b=texture2D(tScene,vUv).rgb;vec3 bl=texture2D(tBloom,vUv).rgb;vec3 c=b+bl*bloomStr*useBloom;
+    c*=exposure;c=aces(c);c=(c-.5)*contrast+.5;float l=dot(c,vec3(.299,.587,.114));c=mix(vec3(l),c,sat);c*=tint;
+    c=pow(clamp(c,0.,1.),vec3(1./2.2));vec2 q=vUv-.5;c*=1.-dot(q,q)*vig;gl_FragColor=vec4(c,1.);}`,
+    {tScene:{value:null},tBloom:{value:null},bloomStr:{value:.65},exposure:{value:1.},sat:{value:1.14},
+     contrast:{value:1.05},tint:{value:new THREE.Color(1.02,1.,.97)},vig:{value:.5},useBloom:{value:1}});}
+  resize(w,h){this.sceneRT.setSize(w,h);const bw=w>>1,bh=h>>1;this.brightRT.setSize(bw,bh);
+    this.blurA.setSize(bw,bh);this.blurB.setSize(bw,bh);this.blur.uniforms.res.value.set(bw,bh);}
+  run(s,c){const r=this.r;r.setRenderTarget(this.sceneRT);r.render(s,c);
+    this.quad.material=this.bright;this.bright.uniforms.t.value=this.sceneRT.texture;r.setRenderTarget(this.brightRT);r.render(this.qS,this.qC);
+    this.quad.material=this.blur;let src=this.brightRT;for(let i=0;i<2;i++){this.blur.uniforms.t.value=src.texture;
+      this.blur.uniforms.dir.value.set(1,0);r.setRenderTarget(this.blurA);r.render(this.qS,this.qC);
+      this.blur.uniforms.t.value=this.blurA.texture;this.blur.uniforms.dir.value.set(0,1);r.setRenderTarget(this.blurB);r.render(this.qS,this.qC);src=this.blurB;}
+    this.quad.material=this.comp;this.comp.uniforms.tScene.value=this.sceneRT.texture;this.comp.uniforms.tBloom.value=this.blurB.texture;
+    this.comp.uniforms.useBloom.value=FX.bloom?1:0;r.setRenderTarget(null);r.render(this.qS,this.qC);}}
+const post=new Post(renderer,innerWidth,innerHeight);
+
+/* ════════ 柔光資源 ════════ */
+function glowTexture(){const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');
+  const gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'rgba(255,255,255,1)');
+  gr.addColorStop(.35,'rgba(255,255,255,.45)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,64,64);
+  const t=new THREE.Texture(c);t.needsUpdate=true;return t;}
+const GLOW=glowTexture();
+const effects=[];function addEffect(e){effects.push(e);}
+function add(o){scene.add(o);return o;}
+function rm(o){scene.remove(o);o.geometry&&o.geometry.dispose();o.material&&o.material.dispose();}
+function softSprite(pos,sx,sy,color,opacity){const mat=new THREE.MeshBasicMaterial({map:GLOW,color,transparent:true,
+  opacity,blending:THREE.AdditiveBlending,depthWrite:false});const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),mat);
+  m.position.copy(pos);m.scale.set(sx,sy,1);add(m);return m;}
+
+/* ════════ Flipbook ════════ */
+function makeExplosionSheet(cols,rows,cell){const c=document.createElement('canvas');c.width=cols*cell;c.height=rows*cell;
+  const g=c.getContext('2d');const N=cols*rows;for(let i=0;i<N;i++){const t=i/(N-1);
+    const cx=(i%cols)*cell+cell/2,cy=((i/cols)|0)*cell+cell/2;const R=cell*.12+t*cell*.4;const a=(t<.5?1:Math.max(0,1-(t-.5)/.5))*.82;
+    const gr=g.createRadialGradient(cx,cy,0,cx,cy,R);gr.addColorStop(0,`rgba(255,250,235,${a})`);
+    gr.addColorStop(.45,`rgba(255,210,150,${a*.75})`);gr.addColorStop(.8,`rgba(220,140,90,${a*.4})`);gr.addColorStop(1,'rgba(120,70,50,0)');
+    g.fillStyle=gr;g.beginPath();g.arc(cx,cy,R,0,7);g.fill();g.save();g.globalCompositeOperation='lighter';
+    for(let s=0;s<10;s++){const ang=(s/10)*6.28+i;const d=R*(.6+.4*((s*7%10)/10));const sr=Math.max(0,(cell*.035)*(1-t));
+      g.fillStyle=`rgba(255,235,200,${a*.6})`;g.beginPath();g.arc(cx+Math.cos(ang)*d,cy+Math.sin(ang)*d,sr,0,7);g.fill();}g.restore();}
+  const tex=new THREE.CanvasTexture(c);return{tex,cols,rows,N};}
+function makeSlashSheet(cols,cell){const c=document.createElement('canvas');c.width=cols*cell;c.height=cell;const g=c.getContext('2d');
+  for(let i=0;i<cols;i++){const t=i/(cols-1);g.save();g.translate(i*cell+cell/2,cell/2);g.rotate(-1+t*2.2);
+    const a=(t<.3?t/.3:Math.max(0,1-(t-.3)/.7))*.85;g.globalCompositeOperation='lighter';
+    for(let L=0;L<3;L++){const rr=cell*(.3+L*.05);g.strokeStyle=L===0?`rgba(255,255,255,${a})`:`rgba(220,235,255,${a*.5})`;
+      g.lineWidth=Math.max(1,cell*(.05-L*.012));g.lineCap='round';g.beginPath();g.arc(0,0,rr,-.9,.9);g.stroke();}g.restore();}
+  const tex=new THREE.CanvasTexture(c);return{tex,cols,rows:1,N:cols};}
+const SHEET_EXPLO=makeExplosionSheet(5,5,128),SHEET_SLASH=makeSlashSheet(8,256);
+function playFlipbook(sheet,pos,size,dur,color){if(!FX.flip)return;const tex=sheet.tex.clone();tex.needsUpdate=true;
+  tex.wrapS=tex.wrapT=THREE.ClampToEdgeWrapping;tex.repeat.set(1/sheet.cols,1/sheet.rows);
+  const mat=new THREE.MeshBasicMaterial({map:tex,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,color:color||0xffffff});
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(size,size),mat);m.position.copy(pos);add(m);let t=0;
+  addEffect({update(dt){t+=dt;const k=Math.min(t/dur,1);const f=Math.min(sheet.N-1,(k*sheet.N)|0);
+    tex.offset.set((f%sheet.cols)/sheet.cols,1-(((f/sheet.cols)|0)+1)/sheet.rows);m.quaternion.copy(camera.quaternion);
+    if(t>=dur){rm(m);tex.dispose();return false;}return true;}});}
+
+/* ════════ 粒子 ════════ */
+function gradAt(s,t){for(let i=0;i<s.length-1;i++)if(t>=s[i].t&&t<=s[i+1].t){
+  const k=(t-s[i].t)/(s[i+1].t-s[i].t);return s[i].c.clone().lerp(s[i+1].c,k);}return s[s.length-1].c.clone();}
+function emitBurst(o){const n=o.count;const geo=new THREE.BufferGeometry();
+  const pos=new Float32Array(n*3),col=new Float32Array(n*3),sz=new Float32Array(n);const P=[];
+  for(let i=0;i<n;i++){const a=Math.random()*6.283,e=.2+Math.random()*1.2;
+    const sp=o.speed[0]+Math.random()*(o.speed[1]-o.speed[0]);let v;
+    if(o.dir){const sd=o.spread||.5;v=o.dir.clone().multiplyScalar(sp);v.x+=(Math.random()-.5)*sp*sd;
+      v.y+=(Math.random()-.5)*sp*sd+(o.lift||0);v.z+=(Math.random()-.5)*sp*sd;}
+    else if(o.coneUp)v=new THREE.Vector3(Math.cos(a)*Math.cos(e)*sp,Math.sin(e)*sp+(o.lift||0),Math.sin(a)*Math.cos(e)*sp);
+    else{const ph=Math.acos(2*Math.random()-1);v=new THREE.Vector3(Math.sin(ph)*Math.cos(a),Math.cos(ph),Math.sin(ph)*Math.sin(a)).multiplyScalar(sp);v.y+=o.lift||0;}
+    P.push({p:o.origin.clone(),v,life:0,max:o.life[0]+Math.random()*(o.life[1]-o.life[0])});
+    pos[i*3]=o.origin.x;pos[i*3+1]=o.origin.y;pos[i*3+2]=o.origin.z;}
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));geo.setAttribute('color',new THREE.BufferAttribute(col,3));
+  geo.setAttribute('size',new THREE.BufferAttribute(sz,1));
+  const mat=new THREE.ShaderMaterial({uniforms:{tex:{value:GLOW}},transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,
+    vertexShader:`attribute float size;attribute vec3 color;varying vec3 vC;void main(){vC=color;
+      vec4 mv=modelViewMatrix*vec4(position,1.);gl_PointSize=size*300./(-mv.z);gl_Position=projectionMatrix*mv;}`,
+    fragmentShader:`uniform sampler2D tex;varying vec3 vC;void main(){gl_FragColor=vec4(vC,1.)*texture2D(tex,gl_PointCoord);}`});
+  const pts=new THREE.Points(geo,mat);scene.add(pts);const grav=o.gravity!=null?o.gravity:6,drag=o.drag||.9;
+  addEffect({update(dt){let al=false;for(let i=0;i<n;i++){const pp=P[i];pp.life+=dt;
+    if(pp.life<pp.max){al=true;pp.v.y-=grav*dt;pp.v.multiplyScalar(1-(1-drag)*dt*4);pp.p.addScaledVector(pp.v,dt);
+      const lt=pp.life/pp.max;pos[i*3]=pp.p.x;pos[i*3+1]=pp.p.y;pos[i*3+2]=pp.p.z;
+      const c=gradAt(o.colors,lt),f=(1-lt)*.85;col[i*3]=c.r*f;col[i*3+1]=c.g*f;col[i*3+2]=c.b*f;
+      sz[i]=o.size[0]+(o.size[1]-o.size[0])*lt;}else sz[i]=0;}
+    geo.attributes.position.needsUpdate=geo.attributes.color.needsUpdate=geo.attributes.size.needsUpdate=true;
+    if(!al){scene.remove(pts);geo.dispose();mat.dispose();return false;}return true;}});}
+const GRAD={
+  ice:[{t:0,c:new THREE.Color(0xeaf7ff)},{t:.5,c:new THREE.Color(0x5cc6f5)},{t:1,c:new THREE.Color(0x12476e)}],
+  ember:[{t:0,c:new THREE.Color(0xfff0c8)},{t:.45,c:new THREE.Color(0xff8a30)},{t:1,c:new THREE.Color(0x6e1e0c)}],
+  wind:[{t:0,c:new THREE.Color(0xe6fff0)},{t:.5,c:new THREE.Color(0x4fe0a0)},{t:1,c:new THREE.Color(0x12513a)}],
+  gold:[{t:0,c:new THREE.Color(0xfff2cf)},{t:.5,c:new THREE.Color(0xeebf5c)},{t:1,c:new THREE.Color(0x553a10)}],
+};
+const WEAPON_STYLE={
+  sword_shield:{color:0x7fc8ff,grad:GRAD.ice,band:[.46,.92],dur:.26,scale:1.,swing:'slash',flip:0xaadcff,heavy:false},
+  greatsword:  {color:0xffa336,grad:GRAD.ember,band:[.16,.96],dur:.42,scale:1.22,swing:'chop',flip:0xffb874,heavy:true},
+  polearm:     {color:0x66e6a6,grad:GRAD.wind,band:[.52,.96],dur:.22,scale:1.08,swing:'sweep',flip:0x9af0c4,heavy:false},
+  common:      {color:0xffcf6b,grad:GRAD.gold,band:[.4,.92],dur:.3,scale:1.,swing:'slash',flip:0xffcf6b,heavy:false},
+};
+const styleFor=w=>WEAPON_STYLE[w]||WEAPON_STYLE.common;
+
+/* ════════ 柔邊 VFX ════════ */
+function slashArc(origin,facing,range,hac,style){const half=Math.acos(THREE.MathUtils.clamp(hac,-1,1))||.001;
+  const seg=30;const v=[],aR=[],aS=[];for(let i=0;i<seg;i++){const a0=-half+2*half*i/seg,a1=-half+2*half*(i+1)/seg;
+    v.push(0,0,0,Math.sin(a0)*range,0,Math.cos(a0)*range,Math.sin(a1)*range,0,Math.cos(a1)*range);
+    aR.push(0,1,1);aS.push(0,a0/half,a1/half);}
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(v,3));
+  geo.setAttribute('aR',new THREE.Float32BufferAttribute(aR,1));geo.setAttribute('aS',new THREE.Float32BufferAttribute(aS,1));
+  const mat=new THREE.ShaderMaterial({transparent:true,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false,
+    uniforms:{uColor:{value:new THREE.Color(style.color)},uOp:{value:0},uBin:{value:style.band[0]},uBout:{value:style.band[1]}},
+    vertexShader:`attribute float aR;attribute float aS;varying float vR;varying float vS;void main(){vR=aR;vS=aS;
+      gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    fragmentShader:`uniform vec3 uColor;uniform float uOp;uniform float uBin;uniform float uBout;varying float vR;varying float vS;
+      void main(){float band=smoothstep(uBin,uBout,vR)*(1.-smoothstep(uBout,uBout+.12,vR));
+        float ang=smoothstep(0.,.35,1.-abs(vS));float a=band*ang*uOp;gl_FragColor=vec4(mix(uColor,vec3(1.),a*.5),a);}`});
+  const m=new THREE.Mesh(geo,mat);m.position.copy(origin);m.position.y=1.1;m.rotation.y=facing;add(m);let t=0;const dur=style.dur;
+  addEffect({update(dt){t+=dt;const k=t/dur;const f=k<.18?k/.18:1-(k-.18)/.82;
+    mat.uniforms.uOp.value=Math.max(0,f)*.95;m.scale.setScalar((.85+.2*k)*style.scale);
+    if(t>=dur){rm(m);return false;}return true;}});}
+function shockRing(center,radius,color){const geo=new THREE.CircleGeometry(radius*1.15,64);
+  const mat=new THREE.ShaderMaterial({transparent:true,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false,
+    uniforms:{uColor:{value:new THREE.Color(color)},uR:{value:0},uW:{value:.12},uOp:{value:1},uMax:{value:radius*1.15}},
+    vertexShader:`varying vec2 vP;void main(){vP=position.xy;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    fragmentShader:`uniform vec3 uColor;uniform float uR;uniform float uW;uniform float uOp;uniform float uMax;varying vec2 vP;
+      void main(){float d=length(vP)/uMax;float ring=exp(-pow((d-uR)/uW,2.));float core=(1.-smoothstep(0.,uR,d))*.13;
+        gl_FragColor=vec4(uColor,(ring+core)*uOp);}`});
+  const m=new THREE.Mesh(geo,mat);m.rotation.x=-Math.PI/2;m.position.copy(center);m.position.y=.05;add(m);let t=0;const dur=.5;
+  addEffect({update(dt){t+=dt;const k=t/dur;mat.uniforms.uR.value=k;mat.uniforms.uW.value=.1+.12*k;mat.uniforms.uOp.value=(1-k)*.9;
+    if(t>=dur){rm(m);return false;}return true;}});}
+function dashTrail(origin,facing,range,color){const dir=new THREE.Vector3(Math.sin(facing),0,Math.cos(facing));
+  let placed=0,t=0;const dur=.26;addEffect({update(dt){t+=dt;const want=Math.floor(t/dur*10);
+    while(placed<want){placed++;const p=origin.clone().addScaledVector(dir,range*placed/10).setY(1.2);
+      const s=softSprite(p,1.3,1.7,color,.5);let tt=0;addEffect({update(d2){tt+=d2;s.material.opacity=.5*(1-tt/.32);
+        s.quaternion.copy(camera.quaternion);if(tt>.32){rm(s);return false;}return true;}});}
+    if(t>=dur)return false;return true;}});}
+function flashHit(d,color,hs,dir,grad){d.userData.hitMat.forEach(m=>{m.emissive=new THREE.Color(color);
+  m.emissiveIntensity=.9;setTimeout(()=>m.emissiveIntensity=0,110);});
+  emitBurst({origin:d.position.clone().setY(1),count:16,life:[.3,.5],speed:[2,5],size:[.45,.08],colors:grad||GRAD.ice,coneUp:true,lift:1.5,gravity:8});
+  if(hs==='knockback'&&dir){d.userData.kbT=.25;d.userData.kbDir.copy(dir);}if(hs==='stun')stunStars(d);}
+function stunStars(d){for(let i=0;i<3;i++){const s=softSprite(d.position.clone(),.45,.45,0xffcf6b,1);
+  let t=0;const dur=1.1,off=i*2.094;addEffect({update(dt){t+=dt;const a=off+t*6;
+    s.position.set(d.position.x+Math.cos(a)*.5,2+Math.sin(t*8)*.05,d.position.z+Math.sin(a)*.5);
+    s.quaternion.copy(camera.quaternion);s.material.opacity=t<.9?1:Math.max(0,1-(t-.9)/.2);
+    if(t>=dur){rm(s);return false;}return true;}});}}
+function hitInCone(origin,facing,range,hac,color,hs,grad){const dir=new THREE.Vector3(Math.sin(facing),0,Math.cos(facing));
+  setTimeout(()=>dummies.forEach(d=>{const to=d.position.clone().sub(origin);to.y=0;if(to.length()>range+.6)return;
+    to.normalize();if(to.dot(dir)>=hac-.02)flashHit(d,color,hs,dir,grad);}),110);}
+
+/* ════════ 播放 ════════ */
+let busy=false,curLevel=2;
+const nowNm=document.querySelector('#now .nm'),nowPh=document.querySelector('#now .ph');
+function setPhase(n,c){nowPh.textContent=n;nowPh.className='ph '+c;}
+function playSkill(id){if(busy)return;const def=SKILL_DEFS[id];if(!def)return;busy=true;nowNm.textContent=def.nameZh;
+  if(def.weapon!=='common')setWeapon(def.weapon);
+  const st=styleFor(def.weapon);const lvl=def.lv?def.lv[Math.min(curLevel,def.lv.length-1)]:{};
+  const facing=player.userData.facing,origin=player.position.clone();
+  const sw=SWING_MAP[id]||def.swing||st.swing;
+  setPhase('WINDUP','ph-windup');const wMs=(def.windup||.2)*1700; // 蓄力加長
+  prep(sw);
+  if(currentWeaponGroup.userData.blade){const bm=currentWeaponGroup.userData.blade;bm.emissive=new THREE.Color(st.color);
+    let wt=0;addEffect({update(dt){wt+=dt;bm.emissiveIntensity=Math.min(1.3,wt/(wMs/1000)*1.3);
+      if(wt>=wMs/1000){bm.emissiveIntensity=0;return false;}return true;}});}
+  setTimeout(()=>{setPhase('ACTIVE','ph-active');
+    moveStrike(sw,facing,true);swing(sw); // 有位移就停在落點，不彈回
+    const hits=def.hits||1;const swMs=SW*1000;
+    const baseImpact=IMPACT[sw]!=null?IMPACT[sw]:.6;
+    for(let h=0;h<hits;h++){
+      const frac=hits>1?(.28+.5*(h/(hits-1))):baseImpact;  // 揮到該幀才觸發特效/命中
+      setTimeout(()=>fireOnce(def,lvl,st,facing,origin),swMs*frac);
+    }
+    const end=swMs+120;setTimeout(()=>setPhase('RECOVERY','ph-recovery'),end);
+    setTimeout(()=>{busy=false;setPhase('','');},end+420);},wMs);}
+
+function fireOnce(def,lvl,st,facing,origin){const dir=new THREE.Vector3(Math.sin(facing),0,Math.cos(facing));
+  const col=st.color,grad=st.grad,hs=lvl.hitstun;
+  const lf=[.78,1.0,1.32][curLevel];          // 等級視覺/範圍倍率
+  const pc=n=>Math.round(n*[.7,1,1.5][curLevel]); // 粒子數隨等級
+  switch(def.kind){
+    case 'cone':{const R=(lvl.range||2.5)*lf;
+      slashArc(origin,facing,R,lvl.halfAngleCos!=null?lvl.halfAngleCos:.5,st);
+      if(curLevel===2)slashArc(origin,facing,R*1.08,lvl.halfAngleCos!=null?lvl.halfAngleCos:.5,st); // Lv3 疊一層更亮
+      const mid=origin.clone().addScaledVector(dir,R*.6).setY(1.2);
+      playFlipbook(SHEET_SLASH,mid,R*1.5*st.scale,.3,st.flip);
+      if(st.heavy){shockRing(origin.clone().addScaledVector(dir,R*.5),R*.9,col);
+        emitBurst({origin:origin.clone().addScaledVector(dir,1).setY(.3),count:pc(14),life:[.3,.6],speed:[1,3],size:[.5,.1],colors:grad,gravity:5,lift:.5});}
+      hitInCone(origin,facing,R,lvl.halfAngleCos!=null?lvl.halfAngleCos:.5,col,hs,grad);break;}
+    case 'projectile':case 'wave':{const isW=def.kind==='wave';const range=(lvl.range||10)*lf;
+      const head=softSprite(origin.clone().setY(1.2),(isW?(lvl.aoeWidth||2)*1.4:1.)*lf,1.2*lf,col,.85);
+      let trav=0;const sp=range/.32;const hit=new Set();
+      addEffect({update(dt){const s=sp*dt;trav+=s;head.position.addScaledVector(dir,s);head.quaternion.copy(camera.quaternion);
+        head.material.opacity=.85*(1-trav/range);
+        emitBurst({origin:head.position.clone(),count:pc(2),life:[.18,.35],speed:[.4,1.6],size:[.32,.04],colors:grad,gravity:1.5,drag:.85});
+        dummies.forEach(d=>{if(hit.has(d))return;const dp=d.position.clone().sub(head.position);dp.y=0;
+          if(Math.abs(dp.dot(dir))<.7&&dp.length()<1.3){hit.add(d);flashHit(d,col,hs,dir,grad);}});
+        if(trav>=range){rm(head);return false;}return true;}});break;}
+    case 'self_aoe':{const A=(lvl.aoeRadius||4)*lf;shockRing(player.position.clone(),A,col);
+      playFlipbook(SHEET_EXPLO,player.position.clone().setY(1.3),A*1.5,.5,st.flip);
+      emitBurst({origin:player.position.clone().setY(.6),count:pc(38),life:[.4,.8],speed:[3,7],size:[.6,.08],colors:grad,gravity:7,lift:2});
+      dummies.forEach(d=>{if(d.position.distanceTo(player.position)<=A)
+        flashHit(d,col,hs,d.position.clone().sub(player.position).setY(0).normalize(),grad);});break;}
+    case 'point_aoe':{const A=(lvl.aoeRadius||3)*lf;const c=origin.clone().addScaledVector(dir,2);shockRing(c,A,col);
+      playFlipbook(SHEET_EXPLO,c.clone().setY(1.2),A*1.5,.5,st.flip);
+      emitBurst({origin:c.clone().setY(.5),count:pc(32),life:[.4,.7],speed:[3,6],size:[.6,.08],colors:grad,gravity:7,lift:2});
+      dummies.forEach(d=>{if(d.position.distanceTo(c)<=A)
+        flashHit(d,col,hs,d.position.clone().sub(c).setY(0).normalize(),grad);});break;}
+    case 'dash':case 'dash_aoe':{const range=lvl.range||lvl.dashRange||5;dashTrail(origin,facing,range,col);
+      const end=origin.clone().addScaledVector(dir,range);
+      if(def.kind==='dash_aoe'){const A=(lvl.aoeRadius||2.5)*lf;shockRing(end,A,col);
+        playFlipbook(SHEET_EXPLO,end.clone().setY(1.1),A*1.5,.45,st.flip);
+        emitBurst({origin:end.clone().setY(.5),count:pc(26),life:[.3,.6],speed:[3,6],size:[.5,.08],colors:grad,gravity:7,lift:2});}
+      else emitBurst({origin:end.clone().setY(1.1),count:pc(14),life:[.25,.45],speed:[2,4],size:[.45,.08],colors:grad,dir,spread:.6,gravity:4});
+      dummies.forEach(d=>{const dp=d.position.clone().sub(origin);dp.y=0;const al=dp.dot(dir);
+        if(al>0&&al<range+.5&&dp.clone().addScaledVector(dir,-al).length()<1.1)flashHit(d,col,hs,dir,grad);});break;}
+    case 'buff':{const bc=def.id==='embolden'?0xffcf6b:0x7fd0ff;const bg=def.id==='embolden'?GRAD.gold:GRAD.ice;
+      shockRing(player.position.clone(),1.6,bc);
+      emitBurst({origin:player.position.clone().setY(.2),count:pc(30),life:[.7,1.2],speed:[.4,1.6],size:[.45,.04],colors:bg,coneUp:true,lift:1.4,gravity:-1.5,drag:.95});break;}
+  }}
+
+/* ════════ 身體動畫 ════════ */
+function resetPose(){upper.rotation.set(0,0,0);armRPivot.rotation.set(ARM_R0,0,0);armLPivot.rotation.set(ARM_L0,0,0);player.position.y=playerBase.y;}
+// 後搖：從揮砍末段姿勢「平滑收回」站姿（FEZ：整招打完才結束，不硬切）
+function recover(dur){
+  const norm=a=>Math.atan2(Math.sin(a),Math.cos(a)); // 旋轉正規化（避免 spin 倒轉一圈）
+  const s0={uX:upper.rotation.x,uY:norm(upper.rotation.y),uZ:upper.rotation.z,
+            aRx:armRPivot.rotation.x,aRy:armRPivot.rotation.y,aRz:armRPivot.rotation.z,
+            aLx:armLPivot.rotation.x,py:player.position.y};
+  let t=0;
+  addEffect({update(dt){t+=dt;const k=Math.min(t/dur,1);const e=k*k*(3-2*k);
+    upper.rotation.x=s0.uX*(1-e);upper.rotation.y=s0.uY*(1-e);upper.rotation.z=s0.uZ*(1-e);
+    armRPivot.rotation.x=s0.aRx+(ARM_R0-s0.aRx)*e;armRPivot.rotation.y=s0.aRy*(1-e);armRPivot.rotation.z=s0.aRz*(1-e);
+    armLPivot.rotation.x=s0.aLx+(ARM_L0-s0.aLx)*e;
+    player.position.y=s0.py+(playerBase.y-s0.py)*e;
+    if(t>=dur){resetPose();return false;}return true;}});
+}
+// 蓄力預備姿勢（windup 時擺出起手式）
+function prep(style){const dur=.3;let t=0;const target={};
+  switch(style){
+    case 'slash': target.uY=.6;target.aRx=.2;break;
+    case 'slash2': target.uY=.7;target.aRx=.1;break;
+    case 'chop_quick': target.aRx=1.7;target.uX=-.15;break;
+    case 'chop': target.aRx=2.2;target.uX=-.25;break;          // 大劍舉過頭
+    case 'diag': target.aRx=1.9;target.uY=.6;break;            // 斜向起手
+    case 'gs_sweep': target.uY=1.1;target.aRx=-1.0;break;      // 大劍橫掃預擺
+    case 'sweep': target.uY=1.0;target.aRx=-1.3;break;
+    case 'thrust': target.uX=-.2;target.aRx=-.5;break;
+    case 'leap_thrust': target.uX=-.15;target.aRx=-.5;break;
+    case 'slam': target.aRx=2.2;break;                         // 舉劍躍起
+    case 'bash': target.aLx=.5;target.uY=.3;break;             // 盾往後拉
+    case 'spin': target.aRx=-1.3;break;
+    case 'shoulder': target.uX=-.2;target.aRx=.6;target.aLx=.6;break;
+    // —— 長槍：手臂維持休息角(槍頭水平朝前)，只用身體預擺 ——
+    case 'pl_sweep': target.uY=.9;target.aRx=ARM_R0;break;     // 槍橫向預擺
+    case 'pl_thrust': target.uX=-.25;target.aRx=ARM_R0;break;  // 縮身準備刺
+    case 'pl_leap': target.uX=-.2;target.aRx=ARM_R0;break;
+    case 'pl_spin': target.aRx=ARM_R0;break;
+    case 'raise': break; case 'guard': break;
+  }
+  const s0={uX:upper.rotation.x,uY:upper.rotation.y,aRx:armRPivot.rotation.x,aLx:armLPivot.rotation.x,py:player.position.y};
+  addEffect({update(dt){t+=dt;const k=Math.min(t/dur,1);
+    upper.rotation.x=s0.uX+((target.uX||0)-s0.uX)*k;upper.rotation.y=s0.uY+((target.uY||0)-s0.uY)*k;
+    armRPivot.rotation.x=s0.aRx+((target.aRx!=null?target.aRx:ARM_R0)-s0.aRx)*k;
+    armLPivot.rotation.x=s0.aLx+((target.aLx!=null?target.aLx:ARM_L0)-s0.aLx)*k;
+    player.position.y=s0.py+((target.py||0)-s0.py)*k;
+    if(t>=dur)return false;return true;}});}
+// 出招動作
+function swing(style){const dur=SW;let t=0;
+  addEffect({update(dt){t+=dt;const k=Math.min(t/dur,1);const s=Math.sin(k*Math.PI);
+    switch(style){
+      case 'slash': upper.rotation.y=.6-1.4*k;armRPivot.rotation.x=.2-1.0*k;break;
+      case 'slash2':{const seg=k<.5?0:1;const local=(k-seg*.5)/.5;const chop=Math.sin(local*Math.PI);
+        armRPivot.rotation.x=.8-2.0*chop;upper.rotation.x=.28*chop;upper.rotation.y=seg===0?.28:-.28;}break;
+      case 'chop_quick': armRPivot.rotation.x=1.7-2.4*k;upper.rotation.x=-.15+.35*k;break;
+      case 'chop': armRPivot.rotation.x=2.2-3.2*k;upper.rotation.x=-.25+.65*k;break;
+      case 'diag': armRPivot.rotation.x=1.9-2.9*k;upper.rotation.y=.6-1.2*k;upper.rotation.x=.2*k;break;
+      case 'gs_sweep':{const swings=4;const p=k*swings;const seg=Math.floor(p)%2;const local=p-Math.floor(p);
+        const dirn=seg===0?1:-1;upper.rotation.y=dirn*(0.95-1.9*local);armRPivot.rotation.x=-1.0-.25*Math.sin(local*Math.PI);}break;
+      case 'sweep': upper.rotation.y=1.0-2.0*k;armRPivot.rotation.x=-1.3;break;
+      case 'thrust': upper.rotation.x=-.2+.5*s;armRPivot.rotation.x=-.5-1.0*s;break;
+      case 'leap_thrust': upper.rotation.x=-.15+.4*s;armRPivot.rotation.x=-.5-1.0*s;break;
+      case 'slam': armRPivot.rotation.x=2.2-3.0*k;upper.rotation.x=.5*k;break;
+      case 'bash': armLPivot.rotation.x=.5-1.9*s;upper.rotation.x=.3*s;upper.rotation.y=.3-.3*k;break;
+      case 'spin': upper.rotation.y=-(k*6.283);armRPivot.rotation.x=-1.3;break;
+      case 'shoulder': upper.rotation.x=-.2+.7*s;armRPivot.rotation.x=.6-.3*k;armLPivot.rotation.x=.6-.3*k;break;
+      // —— 長槍:手臂維持 ARM_R0(槍頭水平朝前),靠身體做掃/刺/轉 ——
+      case 'pl_sweep': upper.rotation.y=.9-1.8*k;armRPivot.rotation.x=ARM_R0;break;
+      case 'pl_thrust': upper.rotation.x=-.25+.55*s;armRPivot.rotation.x=ARM_R0-.25*s;break;
+      case 'pl_leap': upper.rotation.x=-.2+.5*s;armRPivot.rotation.x=ARM_R0-.25*s;break;
+      case 'pl_spin': upper.rotation.y=-(k*6.283);armRPivot.rotation.x=ARM_R0;break;
+      case 'raise':{const kk=Math.min(1,k*2);armRPivot.rotation.x=2.0*kk;armLPivot.rotation.x=1.6*kk;upper.rotation.x=-.2*kk;}break;
+      case 'guard':{const kk=Math.min(1,k*2);player.position.y=-.12*kk;armRPivot.rotation.x=ARM_R0-(1.0)*kk;armLPivot.rotation.x=ARM_L0-(1.1)*kk;upper.rotation.x=.2*kk;}break;
+    }
+    if(t>=dur){recover(.4);return false;}return true;}});}
+// 位移編排：back=蓄力後撤  fwd=出招前衝  jump=跳躍高度
+const MOVE={
+  slash:{fwd:.9,back:.25},
+  slash2:{fwd:.8,back:.25},
+  chop_quick:{fwd:.9,back:.3},
+  chop:{fwd:1.1,back:.5,jump:.4},          // 重劈：後仰蓄力前躍
+  diag:{fwd:1.1,back:.45,jump:1.6},        // 劈斬：跳高再斜斬
+  gs_sweep:{fwd:.9,back:.6},               // 大劍橫掃：大步後拉
+  sweep:{fwd:.9,back:.35},
+  thrust:{fwd:1.9,back:.6},                // 長槍縮後猛刺
+  leap_thrust:{fwd:2.1,back:.45,jump:.7},  // 躍起前刺
+  slam:{fwd:.9,back:.3,jump:1.8},          // 高躍砸地
+  bash:{fwd:1.2,back:.45},                 // 盾撞：拉後猛撞
+  spin:{fwd:.3,jump:.25},                  // 旋擊微浮
+  shoulder:{fwd:2.3,back:.7},              // 縮身猛撞
+  pl_sweep:{fwd:.9,back:.35},
+  pl_thrust:{fwd:1.9,back:.6},             // 長槍縮後猛刺
+  pl_leap:{fwd:2.1,back:.45,jump:.7},      // 躍起前刺
+  pl_spin:{fwd:.3,jump:.25},
+  raise:{}, guard:{},
+};
+function smooth(x){return x*x*(3-2*x);}
+function moveStrike(style,facing,land){const M=MOVE[style];if(!M||(!M.fwd&&!M.jump&&!M.back))return;
+  const dir=new THREE.Vector3(Math.sin(facing),0,Math.cos(facing));
+  const back=M.back||0,fwd=M.fwd||0,jumpH=M.jump||0;const b=playerBase.clone();let t=0;const dur=SW,ka=.25,kb=.58;
+  addEffect({update(dt){t+=dt;const k=Math.min(t/dur,1);let h;
+    if(k<ka)h=-back*(k/ka);                                   // 向後蓄力
+    else if(k<kb)h=-back+(back+fwd)*smooth((k-ka)/(kb-ka));   // 向前突進至 fwd
+    else h=land?fwd:fwd*(1-smooth((k-kb)/(1-kb)));            // 落地停留 或 收回
+    const y=jumpH*Math.sin(THREE.MathUtils.clamp((k-.05)/.85,0,1)*Math.PI);
+    player.position.set(b.x+dir.x*h,b.y+y,b.z+dir.z*h);
+    if(t>=dur){if(land)playerBase.addScaledVector(dir,fwd);player.position.copy(playerBase);return false;}return true;}});}
+
+/* ════════ UI ════════ */
+const tagTxt={flinch:'flinch',knockback:'擊退',stun:'暈眩'},tagCls={flinch:'tag-fl',knockback:'tag-kb',stun:'tag-stun'};
+const groups={common:'g-common',sword_shield:'g-sword_shield',greatsword:'g-greatsword',polearm:'g-polearm'};
+for(const id in SKILL_DEFS){const def=SKILL_DEFS[id];const p=document.getElementById(groups[def.weapon]);if(!p)continue;
+  const b=document.createElement('button');b.className='btn';const hs=def.lv&&def.lv[2]&&def.lv[2].hitstun;
+  b.innerHTML=`<span class="ico">${def.icon}</span><span>${def.nameZh}</span>`+
+    (hs?`<span class="meta ${tagCls[hs]}">${tagTxt[hs]}</span>`:`<span class="meta">buff</span>`);
+  b.onclick=()=>playSkill(id);p.appendChild(b);}
+document.querySelectorAll('#lvrow button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#lvrow button').forEach(x=>x.classList.remove('on'));b.classList.add('on');curLevel=+b.dataset.lv;});
+function tog(id,key){const el=document.getElementById(id);el.onclick=()=>{FX[key]=!FX[key];el.classList.toggle('on',FX[key]);};}
+tog('tog-bloom','bloom');tog('tog-flip','flip');
+document.getElementById('btn-reset').onclick=()=>{resetDummies();playerBase.set(0,0,0);player.position.set(0,0,0);};
+document.getElementById('sl-bloom').oninput=e=>post.comp.uniforms.bloomStr.value=e.target.value/100;
+document.getElementById('sl-exp').oninput=e=>post.comp.uniforms.exposure.value=e.target.value/100;
+let drag=false,px=0,py=0;
+renderer.domElement.addEventListener('mousedown',e=>{drag=true;px=e.clientX;py=e.clientY;});
+addEventListener('mouseup',()=>drag=false);
+addEventListener('mousemove',e=>{if(!drag)return;camYaw-=(e.clientX-px)*.005;
+  camPitch=THREE.MathUtils.clamp(camPitch+(e.clientY-py)*.004,.15,1.3);px=e.clientX;py=e.clientY;updateCam();});
+renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();camDist=THREE.MathUtils.clamp(camDist+e.deltaY*.01,6,24);updateCam();},{passive:false});
+const clock=new THREE.Clock();
+function loop(){requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05);
+  for(let i=effects.length-1;i>=0;i--)if(!effects[i].update(dt))effects.splice(i,1);
+  dummies.forEach(d=>{if(d.userData.kbT>0){d.userData.kbT-=dt;d.position.addScaledVector(d.userData.kbDir,dt*6);}});
+  post.run(scene,camera);}
+loop();
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);post.resize(innerWidth,innerHeight);});
+</script>
+</body>
+</html>

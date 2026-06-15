@@ -1,0 +1,19 @@
+{
+  "name": "fr0-threejs",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.19.3",
+    "@mysten/sui": "^1.45.2",
+    "@mysten/wallet-standard": "^0.20.3",
+    "colyseus.js": "^0.15.0",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}
