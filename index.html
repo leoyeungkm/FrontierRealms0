@@ -693,12 +693,21 @@
       <div id="panel-close-hint" data-i18n="g_skilltree_close">按 K 關閉技能樹</div>
     </div>
 
+    <!-- 小地圖（左上）-->
+    <canvas id="minimap" width="150" height="150" style="position:absolute; top:8px; left:8px; width:150px; height:150px; border-radius:8px; border:1px solid rgba(120,150,210,.35); background:rgba(8,12,20,.5);"></canvas>
+
     <!-- 網路延遲（右上）+ 操作提示（右下）-->
     <div id="net-stat" style="position:absolute; top:8px; right:12px; font:600 11px 'Oswald',sans-serif; color:#cfe0ff; text-shadow:1px 1px 2px #000; display:flex; align-items:center; gap:6px;">
       <span id="net-dot" style="width:8px; height:8px; border-radius:50%; background:#6a7a90; display:inline-block;"></span>
       <span id="net-ms">— ms</span>
     </div>
     <div id="controls-hint" data-i18n="g_keys" style="position:absolute; bottom:8px; right:12px; max-width:48vw; font:11px 'Oswald',sans-serif; color:#9fb0d8; text-shadow:1px 1px 2px #000; opacity:.8; text-align:right; line-height:1.5; pointer-events:none;"></div>
+
+    <!-- 聊天（左下；Enter 開/送，Esc 取消）-->
+    <div id="chat" style="position:absolute; bottom:92px; left:10px; width:300px; max-width:42vw; font:12px 'Oswald',sans-serif;">
+      <div id="chat-msgs" style="display:flex; flex-direction:column; gap:2px; margin-bottom:4px;"></div>
+      <input id="chat-input" maxlength="120" autocomplete="off" style="display:none; width:100%; padding:5px 9px; border-radius:6px; border:1px solid rgba(120,150,210,.45); background:rgba(8,12,20,.88); color:#e8eefc; font:12px 'Oswald',sans-serif; outline:none;">
+    </div>
 
     <!-- Dual Keep HP Bars (top center) -->
     <div style="position:absolute; top:0; left:50%; transform:translateX(-50%);

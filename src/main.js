@@ -2187,6 +2187,49 @@ function _updateNameLabel() {
   else _nameLabel.style.display = 'none';
 }
 
+// 小地圖：俯視島嶼 + 城堡 + 小兵 + 其他玩家 + 自己（朝向箭頭）
+function _drawMinimap() {
+  const cv = document.getElementById('minimap'); if (!cv) return;
+  const ctx = cv.getContext('2d'); if (!ctx) return;
+  const S = 150, C = S / 2, sc = (C - 6) / 62;
+  const px = (x) => C + x * sc, py = (z) => C + z * sc;
+  ctx.clearRect(0, 0, S, S);
+  ctx.fillStyle = 'rgba(46,78,56,0.5)'; ctx.beginPath(); ctx.arc(C, C, 58 * sc, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#6aa8ff'; ctx.fillRect(px(0) - 4, py(50) - 4, 8, 8);    // 藍方主堡
+  ctx.fillStyle = '#ff6a6a'; ctx.fillRect(px(0) - 4, py(-50) - 4, 8, 8);   // 紅方主堡
+  for (const en of Object.values(enemies)) {
+    if (!en || !en.alive || !en.group) continue; const p = en.group.position;
+    ctx.fillStyle = en.team === myTeam ? '#7fd99a' : '#e88'; ctx.fillRect(px(p.x) - 1.5, py(p.z) - 1.5, 3, 3);
+  }
+  for (const rp of Object.values(remotePlayers)) {
+    if (!rp || !rp.group) continue; const p = rp.group.position;
+    ctx.fillStyle = rp.team === myTeam ? '#9ecbff' : '#ff9a9a'; ctx.beginPath(); ctx.arc(px(p.x), py(p.z), 2.6, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.save(); ctx.translate(px(playerPos.x), py(playerPos.z)); ctx.rotate(-playerYaw);
+  ctx.fillStyle = '#ffe08a'; ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(4, 5); ctx.lineTo(-4, 5); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+// ── 聊天（傾計）──
+function _openChat() { const i = document.getElementById('chat-input'); if (!i) return; i.style.display = 'block'; i.placeholder = t('g_chat_ph'); i.focus(); }
+function _closeChat() { const i = document.getElementById('chat-input'); if (i) { i.style.display = 'none'; i.blur(); } }
+function _addChat(name, text, team) {
+  const box = document.getElementById('chat-msgs'); if (!box) return;
+  const col = team === 1 ? '#9ecbff' : team === 2 ? '#ff9a9a' : '#cfe0ff';
+  const d = document.createElement('div'); d.style.cssText = 'text-shadow:1px 1px 2px #000; word-break:break-word;';
+  const nb = document.createElement('b'); nb.style.color = col; nb.textContent = name;
+  const tx = document.createElement('span'); tx.style.color = '#dfe6f5'; tx.textContent = ': ' + text;
+  d.appendChild(nb); d.appendChild(tx); box.appendChild(d);
+  while (box.children.length > 6) box.removeChild(box.firstChild);
+  setTimeout(() => { d.style.transition = 'opacity 1s'; d.style.opacity = '0'; setTimeout(() => d.remove(), 1000); }, 12000);
+}
+document.getElementById('chat-input')?.addEventListener('keydown', (e) => {
+  e.stopPropagation();
+  const i = e.currentTarget;
+  if (e.code === 'Enter') { const v = i.value.trim(); if (v && room) { try { room.send('chat', v); } catch { /* noop */ } } i.value = ''; _closeChat(); }
+  else if (e.code === 'Escape') { i.value = ''; _closeChat(); }
+});
+
 // HUD 網路延遲顯示（ms + 燈號色：綠<80 / 黃<160 / 紅）
 function _updateNetStat(ms) {
   const el = document.getElementById('net-ms'); if (el) el.textContent = Math.round(ms) + ' ms';
@@ -2314,6 +2357,7 @@ async function connectToServer() {
   });
   room.onMessage('pname', d => setRemoteName(String(d[0]), String(d[1] || '')));   // 遠端玩家名牌顯示真名
   room.onMessage('pong', t => _updateNetStat(performance.now() - Number(t)));       // 延遲量測：算 RTT
+  room.onMessage('chat', d => _addChat(String(d[0]), String(d[1]), Number(d[2])));  // 聊天訊息
   setInterval(() => { try { room.send('ping', performance.now()); } catch { /* noop */ } }, 2500);
   // 防多開：同帳號在他處登入 → 本連線被踢，顯示提示、不自動重連
   let _kicked = false;
@@ -3235,6 +3279,7 @@ function _gameFrame() {
   } else {
     renderer.render(scene, camera);   // 低畫質：跳過整條後處理
   }
+  try { _drawMinimap(); } catch { /* noop */ }
 }
 
 // ─── Init ────────────────────────────────────────────────────

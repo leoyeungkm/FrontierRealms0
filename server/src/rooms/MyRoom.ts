@@ -385,6 +385,15 @@ export class MyRoom extends Room<MyRoomState> {
     // 延遲量測：client 送 ping(時戳) → 原樣回 pong，client 算 RTT 顯示 ms
     this.onMessage('ping', (client, t) => client.send('pong', t));
 
+    // 聊天：廣播給全場（帶角色名 + 隊伍色）
+    this.onMessage('chat', (client, text) => {
+      const msg = String(text || '').slice(0, 120).trim();
+      if (!msg) return;
+      const nm = this.playerNames.get(client.sessionId) || client.sessionId.slice(-4);
+      const p = this.state.players.get(client.sessionId);
+      this.broadcast('chat', [nm, msg, p ? p.team : 0]);
+    });
+
     // Sui 登入：驗證個人訊息簽章 → 綁定 sessionId ↔ 地址（防偽造 ownership）
     this.onMessage('suiAuth', async (client: Client, data: any) => {
       if (!suiEnabled() || !Array.isArray(data)) return;
