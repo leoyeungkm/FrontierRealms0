@@ -2255,13 +2255,12 @@ document.querySelectorAll('#action-bar .act-btn').forEach(b => b.addEventListene
 
 // ── 聊天（傾計）──
 function _openChat() {
-  const d = document.getElementById('chat-dock'), i = document.getElementById('chat-input');
-  if (!d || !i) return; d.style.display = 'block'; i.placeholder = t('g_chat_ph'); i.focus();
-  try { document.exitPointerLock(); } catch { /* noop */ }   // 釋放滑鼠以點快捷鈕
+  const i = document.getElementById('chat-input'); if (!i) return;   // 聊天框常駐，Enter 只聚焦輸入
+  i.placeholder = t('g_chat_ph'); i.focus();
+  try { document.exitPointerLock(); } catch { /* noop */ }   // 釋放滑鼠以打字／點按鈕
 }
 function _closeChat() {
-  const d = document.getElementById('chat-dock'), i = document.getElementById('chat-input');
-  if (i) { i.value = ''; i.blur(); } if (d) d.style.display = 'none';
+  const i = document.getElementById('chat-input'); if (i) { i.value = ''; i.blur(); }
 }
 function _sendChat(v) { v = (v || '').trim(); if (v && room) { try { room.send('chat', v); } catch { /* noop */ } } }
 function _addChat(name, text, team) {
@@ -3199,7 +3198,10 @@ function updatePlayer(dt) {
     offset.x += (Math.random() - 0.5) * shk * 0.6;
     offset.y += (Math.random() - 0.5) * shk * 0.6;
   }
-  camera.position.lerp(_camDest.copy(lookTarget).add(offset), 0.15);
+  const _ideal = _camDest.copy(lookTarget).add(offset);
+  const _minCamY = getTerrainHeight(_ideal.x, _ideal.z) + 1.6;   // 防相機穿入地形／山坡
+  if (_ideal.y < _minCamY) _ideal.y = _minCamY;
+  camera.position.lerp(_ideal, 0.15);
   camera.lookAt(lookTarget);
 
   // FOV punch：命中瞬間視野收縮 ~2.6°，0.2s 內回彈（配合凍幀的衝擊感）
