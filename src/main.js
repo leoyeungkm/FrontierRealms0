@@ -2254,24 +2254,38 @@ document.querySelectorAll('#action-bar .act-btn').forEach(b => b.addEventListene
 }));
 
 // ── 聊天（傾計）──
-function _openChat() { const i = document.getElementById('chat-input'); if (!i) return; i.style.display = 'block'; i.placeholder = t('g_chat_ph'); i.focus(); }
-function _closeChat() { const i = document.getElementById('chat-input'); if (i) { i.style.display = 'none'; i.blur(); } }
+function _openChat() {
+  const d = document.getElementById('chat-dock'), i = document.getElementById('chat-input');
+  if (!d || !i) return; d.style.display = 'block'; i.placeholder = t('g_chat_ph'); i.focus();
+  try { document.exitPointerLock(); } catch { /* noop */ }   // 釋放滑鼠以點快捷鈕
+}
+function _closeChat() {
+  const d = document.getElementById('chat-dock'), i = document.getElementById('chat-input');
+  if (i) { i.value = ''; i.blur(); } if (d) d.style.display = 'none';
+}
+function _sendChat(v) { v = (v || '').trim(); if (v && room) { try { room.send('chat', v); } catch { /* noop */ } } }
 function _addChat(name, text, team) {
   const box = document.getElementById('chat-msgs'); if (!box) return;
-  const col = team === 1 ? '#9ecbff' : team === 2 ? '#ff9a9a' : '#cfe0ff';
-  const d = document.createElement('div'); d.style.cssText = 'text-shadow:1px 1px 2px #000; word-break:break-word;';
-  const nb = document.createElement('b'); nb.style.color = col; nb.textContent = name;
-  const tx = document.createElement('span'); tx.style.color = '#dfe6f5'; tx.textContent = ': ' + text;
+  const col = team === 1 ? '#7fb4ff' : team === 2 ? '#ff8a8a' : '#cfe0ff';
+  const d = document.createElement('div'); d.className = 'chat-line'; d.style.borderLeftColor = col;
+  const nb = document.createElement('span'); nb.className = 'cn'; nb.style.color = col; nb.textContent = name;
+  const tx = document.createElement('span'); tx.className = 'ct'; tx.textContent = text;
   d.appendChild(nb); d.appendChild(tx); box.appendChild(d);
-  while (box.children.length > 6) box.removeChild(box.firstChild);
-  setTimeout(() => { d.style.transition = 'opacity 1s'; d.style.opacity = '0'; setTimeout(() => d.remove(), 1000); }, 12000);
+  while (box.children.length > 8) box.removeChild(box.firstChild);
+  box.scrollTop = box.scrollHeight;
+  setTimeout(() => { d.style.transition = 'opacity 1s'; d.style.opacity = '0'; setTimeout(() => d.remove(), 1000); }, 14000);
 }
 document.getElementById('chat-input')?.addEventListener('keydown', (e) => {
   e.stopPropagation();
   const i = e.currentTarget;
-  if (e.code === 'Enter') { const v = i.value.trim(); if (v && room) { try { room.send('chat', v); } catch { /* noop */ } } i.value = ''; _closeChat(); }
-  else if (e.code === 'Escape') { i.value = ''; _closeChat(); }
+  if (e.code === 'Enter') { _sendChat(i.value); i.value = ''; _closeChat(); }
+  else if (e.code === 'Escape') { _closeChat(); }
 });
+document.getElementById('chat-send')?.addEventListener('click', () => {
+  const i = document.getElementById('chat-input'); if (i) { _sendChat(i.value); i.value = ''; } _closeChat();
+});
+// 快捷喊話：點即送（保持輸入框開著，可連喊）
+document.querySelectorAll('#chat-quick .qchat').forEach(b => b.addEventListener('click', () => _sendChat(b.textContent)));
 
 // HUD 網路延遲顯示（ms + 燈號色：綠<80 / 黃<160 / 紅）
 function _updateNetStat(ms) {
