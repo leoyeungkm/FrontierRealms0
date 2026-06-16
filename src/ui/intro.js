@@ -224,7 +224,7 @@ export function initIntro(opts = {}) {
     document.querySelectorAll('.map-tab').forEach(b => b.addEventListener('click', () => _setTab(b.dataset.tab)));
     _setTab('market');
     _renderAllegiance();
-    _selectedMap = null;   // 不預設：點地圖才顯示戰況 + 出征鈕
+    _selectedMap = null;   // 初始 null；initMapScene 會預設選「交戰中」戰場（grid fallback 見 _renderTerritories）
     _refreshCount();
     _renderMapInfo(); _syncEnter();
     _pollTimer = setInterval(_poll, 4000);
@@ -256,6 +256,9 @@ export function initIntro(opts = {}) {
     html += `</div>`;
     el.innerHTML = html;
     el.querySelector('[data-enter]')?.addEventListener('click', _enter);
+    // 同 3D：預設選「交戰中」戰場 → 顯示戰況 + 出征鈕
+    const _war = TERRITORIES.find(tr => tr.active);
+    if (_war) _onSelectMap({ name: _war.name, state: 'war', enter: true });
   }
   function _setTab(tab) {
     _tab = tab;

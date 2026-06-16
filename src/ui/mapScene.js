@@ -171,7 +171,9 @@ export function initMapScene(container, { kingdoms = [], onSelectMap = () => {},
     };
     _march(CMAPS[3].pos, CMAPS[0].pos, NCOL[0]);   // Twin Gates(Minas 藍) → Aeloria
     _march(CMAPS[1].pos, CMAPS[0].pos, NCOL[1]);   // Borderlands(Calaadia 紅) → Aeloria
-    // 不預設選取：等使用者點地圖才顯示該地圖戰況與出征鈕
+    // 進場預設選取「交戰中」的戰場（Aeloria）→ 直接顯示戰況 + 出征鈕，引導玩家知道可以出征
+    const _warIdx = CMAPS.findIndex(m => m.state === 'war');
+    if (_warIdx >= 0) { _selMap(_warIdx); onSelectMap({ ...CMAPS[_warIdx], idx: _warIdx }); }
 
     // ── 五王國：首都 → 本土小爭奪地（串）→ 中央戰場 ──
     const KR = 6.7, N = kingdoms.length || 5;
