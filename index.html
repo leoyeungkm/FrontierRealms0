@@ -406,6 +406,10 @@
     .cc-pbtn:hover { filter: brightness(1.1); }
     .cc-pbtn:disabled { opacity: .6; cursor: default; }
     .cc-pnote { font-size: 10px; opacity: .7; color: #9fb0d8; white-space: nowrap; }
+    #action-bar { position: absolute; bottom: 8px; right: 12px; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; max-width: 62vw; }
+    .act-btn { display: flex; align-items: center; gap: 5px; padding: 6px 10px; border: 1px solid rgba(120,150,210,.35); border-radius: 8px; background: rgba(14,20,34,.7); color: #cfe0ff; font: 600 11px 'Oswald', sans-serif; cursor: pointer; transition: all .12s; }
+    .act-btn:hover { background: rgba(120,150,210,.28); border-color: rgba(174,224,255,.6); transform: translateY(-1px); }
+    .act-btn kbd { font: 700 10px 'Oswald', sans-serif; background: rgba(174,224,255,.18); border: 1px solid rgba(174,224,255,.4); border-radius: 4px; padding: 1px 5px; color: #dff; }
     #map-tabs { display: flex; gap: 6px; margin: 4px 0 8px; }
     .map-tab { flex: 1; padding: 9px; cursor: pointer; border-radius: 8px 8px 0 0;
       border: 1px solid rgba(120,140,200,0.2); border-bottom: none; background: rgba(255,255,255,0.03);
@@ -694,14 +698,21 @@
     </div>
 
     <!-- 小地圖（左上）-->
-    <canvas id="minimap" width="150" height="150" style="position:absolute; top:8px; left:8px; width:150px; height:150px; border-radius:8px; border:1px solid rgba(120,150,210,.35); background:rgba(8,12,20,.5);"></canvas>
+    <canvas id="minimap" width="170" height="170" style="position:absolute; top:8px; left:8px; width:170px; height:170px; border-radius:8px; border:1px solid rgba(120,150,210,.4); box-shadow:0 4px 16px rgba(0,0,0,.5); background:rgba(8,12,20,.5);"></canvas>
 
     <!-- 網路延遲（右上）+ 操作提示（右下）-->
     <div id="net-stat" style="position:absolute; top:8px; right:12px; font:600 11px 'Oswald',sans-serif; color:#cfe0ff; text-shadow:1px 1px 2px #000; display:flex; align-items:center; gap:6px;">
       <span id="net-dot" style="width:8px; height:8px; border-radius:50%; background:#6a7a90; display:inline-block;"></span>
       <span id="net-ms">— ms</span>
     </div>
-    <div id="controls-hint" data-i18n="g_keys" style="position:absolute; bottom:8px; right:12px; max-width:48vw; font:11px 'Oswald',sans-serif; color:#9fb0d8; text-shadow:1px 1px 2px #000; opacity:.8; text-align:right; line-height:1.5; pointer-events:none;"></div>
+    <div id="action-bar">
+      <button class="act-btn" data-act="market"><kbd>M</kbd><span data-i18n="g_a_market"></span></button>
+      <button class="act-btn" data-act="gear"><kbd>O</kbd><span data-i18n="g_a_gear"></span></button>
+      <button class="act-btn" data-act="build"><kbd>B</kbd><span data-i18n="g_a_build"></span></button>
+      <button class="act-btn" data-act="summon"><kbd>G</kbd><span data-i18n="g_a_summon"></span></button>
+      <button class="act-btn" data-act="skill"><kbd>K</kbd><span data-i18n="g_a_skill"></span></button>
+      <button class="act-btn" data-act="weapon"><kbd>Tab</kbd><span data-i18n="g_a_weapon"></span></button>
+    </div>
 
     <!-- 聊天（左下；Enter 開/送，Esc 取消）-->
     <div id="chat" style="position:absolute; bottom:92px; left:10px; width:300px; max-width:42vw; font:12px 'Oswald',sans-serif;">

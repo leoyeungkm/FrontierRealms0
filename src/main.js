@@ -195,14 +195,7 @@ window.addEventListener('keydown', e => {
     else canvas.requestPointerLock();
   }
   // Tab：循環換武器
-  if (e.code === 'Tab' && !isSkillPanelOpen()) {
-    e.preventDefault();
-    const order = ['sword_shield', 'greatsword', 'polearm'];
-    const next = order[(order.indexOf(treeState.weapon) + 1) % order.length];
-    setWeapon(next);
-    autoFillSkills();   // 換武器：在角色等級預算內重填技能
-    showAnnounce(t('g_equipped', { name: weaponLabel(next) }));
-  }
+  if (e.code === 'Tab' && !isSkillPanelOpen()) { e.preventDefault(); _cycleWeapon(); }
 });
 window.addEventListener('keyup',   e => {
   const _t = e.target;
@@ -2193,25 +2186,51 @@ let _miniBase = null;
 function _drawMinimap() {
   const cv = document.getElementById('minimap'); if (!cv) return;
   const ctx = cv.getContext('2d'); if (!ctx) return;
-  const S = 150, C = S / 2, sc = (C - 6) / 62;
+  const S = 170, C = S / 2, sc = (C - 6) / 62;
   const px = (x) => C + x * sc, py = (z) => C + z * sc;
   ctx.clearRect(0, 0, S, S);
   if (!_miniBase) { try { _miniBase = drawMinimapBase(S); } catch { /* noop */ } }   // 地形底圖（一次生成快取）
   if (_miniBase) ctx.drawImage(_miniBase, 0, 0);
-  ctx.fillStyle = '#6aa8ff'; ctx.fillRect(px(0) - 4, py(50) - 4, 8, 8);    // 藍方主堡
-  ctx.fillStyle = '#ff6a6a'; ctx.fillRect(px(0) - 4, py(-50) - 4, 8, 8);   // 紅方主堡
+  // 主堡（據點）：大方塊 + 白邊
+  const _keep = (z, c) => { ctx.fillStyle = c; ctx.fillRect(px(0) - 5, py(z) - 5, 10, 10); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.strokeRect(px(0) - 5, py(z) - 5, 10, 10); };
+  _keep(50, '#5aa8ff'); _keep(-50, '#ff5a5a');
+  // 小兵：亮飽和圓（敵紅 / 我藍），比之前大且醒目
   for (const en of Object.values(enemies)) {
     if (!en || !en.alive || !en.group) continue; const p = en.group.position;
-    ctx.fillStyle = en.team === myTeam ? '#7fd99a' : '#e88'; ctx.fillRect(px(p.x) - 1.5, py(p.z) - 1.5, 3, 3);
+    ctx.fillStyle = en.team === myTeam ? '#5ab8ff' : '#ff5050';
+    ctx.beginPath(); ctx.arc(px(p.x), py(p.z), 2.8, 0, Math.PI * 2); ctx.fill();
   }
+  // 其他玩家：較大圓 + 白邊
   for (const rp of Object.values(remotePlayers)) {
     if (!rp || !rp.group) continue; const p = rp.group.position;
-    ctx.fillStyle = rp.team === myTeam ? '#9ecbff' : '#ff9a9a'; ctx.beginPath(); ctx.arc(px(p.x), py(p.z), 2.6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = rp.team === myTeam ? '#a8d4ff' : '#ffa0a0';
+    ctx.beginPath(); ctx.arc(px(p.x), py(p.z), 3.8, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.stroke();
   }
+  // 自己：金色箭頭（朝向）+ 黑邊
   ctx.save(); ctx.translate(px(playerPos.x), py(playerPos.z)); ctx.rotate(-playerYaw);
-  ctx.fillStyle = '#ffe08a'; ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(4, 5); ctx.lineTo(-4, 5); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#ffe08a'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(5, 6); ctx.lineTo(0, 3); ctx.lineTo(-5, 6); ctx.closePath(); ctx.fill(); ctx.stroke();
   ctx.restore();
 }
+
+// 循環換武器（Tab 鍵與操作列武器鈕共用）
+function _cycleWeapon() {
+  const order = ['sword_shield', 'greatsword', 'polearm'];
+  const next = order[(order.indexOf(treeState.weapon) + 1) % order.length];
+  setWeapon(next); autoFillSkills();   // 換武器：在角色等級預算內重填技能
+  showAnnounce(t('g_equipped', { name: weaponLabel(next) }));
+}
+// 操作列：可點的功能按鈕（同對應快捷鍵）
+document.querySelectorAll('#action-bar .act-btn').forEach(b => b.addEventListener('click', () => {
+  const a = b.dataset.act;
+  if (a === 'market') { if (toggleMarketHud()) document.exitPointerLock(); else canvas.requestPointerLock(); }
+  else if (a === 'gear') toggleAppearancePanel();
+  else if (a === 'build') toggleBuildMenu();
+  else if (a === 'summon') toggleSummonMenu(s.active);
+  else if (a === 'skill') toggleSkillPanel();
+  else if (a === 'weapon') _cycleWeapon();
+}));
 
 // ── 聊天（傾計）──
 function _openChat() { const i = document.getElementById('chat-input'); if (!i) return; i.style.display = 'block'; i.placeholder = t('g_chat_ph'); i.focus(); }
