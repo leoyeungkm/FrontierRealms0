@@ -1,0 +1,29 @@
+# Render Blueprint：一鍵部署 FR0 Colyseus server（DEMO 用）
+# Render → New → Blueprint → 連這個 repo → 自動讀此檔建好服務。
+# 私鑰 FR0_ADMIN_SECRET 不寫在這（sync:false）→ 在 Render Dashboard 的 Environment 手動填。
+services:
+  - type: web
+    name: fr0-server
+    runtime: node
+    rootDir: server
+    plan: free                 # DEMO；free 閒置會休眠（首次連線需 ~30s 喚醒）。要不休眠改 starter（付費）
+    buildCommand: npm install --include=dev   # 確保 tsx（dev 依賴）有裝，serve 才跑得起來
+    startCommand: npm run serve
+    healthCheckPath: /hello_world
+    envVars:
+      - key: FR0_SUI_NETWORK
+        value: testnet
+      - key: FR0_PACKAGE_ID
+        value: "0x1712a9d8fcb6a6325a2336156d9257fa4afc5b3b215985edf85750d53ba7d1fd"
+      - key: FR0_MARKET_ID
+        value: "0x585a99d8d30f146a0612e4d63be52fc0a74628b16b38ee71ed912e037cefde8f"
+      - key: FR0_MARKET_CAP
+        value: "0x920b1a44b2fda1a7905b51ca4761e4fff66b9f536589a2fd0c98feb90834ebce"
+      - key: FR0_HERO_PACKAGE
+        value: "0xe51bd7edc04b6c101e79ac2438e67a778e2ba821e5fa66353d730a3a4578ab1c"
+      - key: FR0_HERO_CONFIG
+        value: "0x0eef570e98739a109377dc593c277ddb99e206c63a50d2932723616892786ef9"
+      - key: FR0_HERO_ADMINCAP
+        value: "0x6bca07b39aee1f9cb5902c4756c838873824cd80de21bbddd2d1883075e0948d"
+      - key: FR0_ADMIN_SECRET
+        sync: false            # ← oracle 私鑰：在 Render Dashboard 手動填，不進 git

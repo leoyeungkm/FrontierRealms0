@@ -2,14 +2,33 @@
 
 把 Colyseus server 放在 Mac mini 上 24/7 運行,透過 **Cloudflare Tunnel** 對外提供 `wss://` 連線,client（Vercel）連過來。
 
-## 架構
-- **Mac mini**：Node + Colyseus（port `2567`），用 **pm2** 常駐 + 開機自啟。
-- **Cloudflare Tunnel**：把 `localhost:2567` 對外成 `wss://game.fr0.world`（自動 TLS、免開路由器 port）。
-- **client（Vercel）**：環境變數 `VITE_SERVER_URL = wss://game.fr0.world`。
+## 兩種部署
+- **DEMO 期 → 方案 A：Render**（雲端、最快、公網自動 wss、免自己機器長開）。
+- **正式 / 省成本 → 方案 B：Mac mini**（本地長開 + Cloudflare Tunnel）。
+
+兩者 server 程式相同；差別只在「跑在哪」與 client 的 `VITE_SERVER_URL` 指到哪。
 
 ---
 
-## 一、Mac mini（server）
+## 方案 A：Render（DEMO 推薦）
+
+repo 已附 `render.yaml`（Blueprint），連 GitHub 一鍵建好。
+
+1. Render → **New → Blueprint** → 選這個 repo → 它讀 `render.yaml` 自動建 `fr0-server`
+   （`rootDir=server`、build=`npm install`、start=`npm run serve`、health=`/hello_world`）。
+2. 進該服務 → **Environment** → 填 `FR0_ADMIN_SECRET`（oracle 私鑰 `suiprivkey…`，render.yaml 設 `sync:false` 不進 repo）→ 存檔會自動重啟。其餘公開 ID 已在 `render.yaml`。
+3. 確認 oracle 錢包（0xfde8）有 testnet gas。看 **Logs** 應出現 `[market]/[hero] init enabled=true`。
+4. Render 給網址（例 `https://fr0-server.onrender.com`）→ client 設 `VITE_SERVER_URL = wss://fr0-server.onrender.com` → 重新 deploy。
+
+> ⚠ `free` 方案閒置會休眠（約 15 分鐘沒人連 → 睡，下次連線需 ~30 秒喚醒）。DEMO 可接受；要常駐不睡改 `plan: starter`（付費）。Render 自動提供 `PORT`，Colyseus 會自動讀，不用改程式。
+
+---
+
+## 方案 B：Mac mini（正式長開）
+
+架構：Node + Colyseus（`2567`）用 **pm2** 常駐 + 開機自啟；**Cloudflare Tunnel** 把 `localhost:2567` 對外成 `wss://game.fr0.world`（自動 TLS、免開 port）；client 設 `VITE_SERVER_URL = wss://game.fr0.world`。
+
+### 一、Mac mini（server）
 
 ```bash
 # 1) 裝 Node 與 Cloudflare 工具
