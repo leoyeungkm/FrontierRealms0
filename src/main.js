@@ -2186,17 +2186,23 @@ let _miniBase = null;
 function _drawMinimap() {
   const cv = document.getElementById('minimap'); if (!cv) return;
   const ctx = cv.getContext('2d'); if (!ctx) return;
-  const S = 170, C = S / 2, sc = (C - 6) / 62;
+  const S = 200, C = S / 2, sc = (C - 6) / 62;
   const px = (x) => C + x * sc, py = (z) => C + z * sc;
   ctx.clearRect(0, 0, S, S);
   if (!_miniBase) { try { _miniBase = drawMinimapBase(S); } catch { /* noop */ } }   // 地形底圖（一次生成快取）
   if (_miniBase) ctx.drawImage(_miniBase, 0, 0);
+  // 網格（方格 + 中心十字）
+  ctx.strokeStyle = 'rgba(150,180,230,0.16)'; ctx.lineWidth = 1;
+  for (let g = -60; g <= 60; g += 20) {
+    ctx.beginPath(); ctx.moveTo(px(g), py(-60)); ctx.lineTo(px(g), py(60)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px(-60), py(g)); ctx.lineTo(px(60), py(g)); ctx.stroke();
+  }
   // 主堡（據點）：大方塊 + 白邊
   const _keep = (z, c) => { ctx.fillStyle = c; ctx.fillRect(px(0) - 5, py(z) - 5, 10, 10); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.strokeRect(px(0) - 5, py(z) - 5, 10, 10); };
   _keep(50, '#5aa8ff'); _keep(-50, '#ff5a5a');
   // 小兵：亮飽和圓（敵紅 / 我藍），比之前大且醒目
   for (const en of Object.values(enemies)) {
-    if (!en || !en.alive || !en.group) continue; const p = en.group.position;
+    if (!en || !en.group) continue; const p = en.group.position;   // enemies 內即為存活（死亡會 delete）
     ctx.fillStyle = en.team === myTeam ? '#5ab8ff' : '#ff5050';
     ctx.beginPath(); ctx.arc(px(p.x), py(p.z), 2.8, 0, Math.PI * 2); ctx.fill();
   }
