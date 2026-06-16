@@ -2191,11 +2191,19 @@ function _drawMinimap() {
   ctx.clearRect(0, 0, S, S);
   if (!_miniBase) { try { _miniBase = drawMinimapBase(S); } catch { /* noop */ } }   // 地形底圖（一次生成快取）
   if (_miniBase) ctx.drawImage(_miniBase, 0, 0);
-  // 網格（方格 + 中心十字）
-  ctx.strokeStyle = 'rgba(150,180,230,0.16)'; ctx.lineWidth = 1;
-  for (let g = -60; g <= 60; g += 20) {
-    ctx.beginPath(); ctx.moveTo(px(g), py(-60)); ctx.lineTo(px(g), py(60)); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(px(-60), py(g)); ctx.lineTo(px(60), py(g)); ctx.stroke();
+  // FEZ 式座標網格：9×9 格 + 左 A–I／下 1–9 標籤（玩家可互報座標，如「敵人 C5」）
+  const _N = 9, _cell = 120 / _N;
+  ctx.strokeStyle = 'rgba(150,180,230,0.18)'; ctx.lineWidth = 1;
+  for (let i = 0; i <= _N; i++) {
+    const w = -60 + i * _cell;
+    ctx.beginPath(); ctx.moveTo(px(w), py(-60)); ctx.lineTo(px(w), py(60)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px(-60), py(w)); ctx.lineTo(px(60), py(w)); ctx.stroke();
+  }
+  ctx.font = "700 9px 'Oswald', sans-serif"; ctx.fillStyle = 'rgba(190,210,240,0.75)';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (let i = 0; i < _N; i++) {
+    ctx.fillText(String.fromCharCode(65 + i), 9, py(-60 + (i + 0.5) * _cell));   // A–I 左欄（對應上→下）
+    ctx.fillText(String(i + 1), px(-60 + (i + 0.5) * _cell), S - 8);             // 1–9 底列（對應左→右）
   }
   // 主堡（據點）：大方塊 + 白邊
   const _keep = (z, c) => { ctx.fillStyle = c; ctx.fillRect(px(0) - 5, py(z) - 5, 10, 10); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.strokeRect(px(0) - 5, py(z) - 5, 10, 10); };
@@ -2214,10 +2222,17 @@ function _drawMinimap() {
     ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.stroke();
   }
   // 自己：金色箭頭（朝向）+ 黑邊
-  ctx.save(); ctx.translate(px(playerPos.x), py(playerPos.z)); ctx.rotate(-playerYaw);
+  ctx.save(); ctx.translate(px(playerPos.x), py(playerPos.z)); ctx.rotate(-playerYaw + Math.PI);   // +π 修正箭頭倒轉
   ctx.fillStyle = '#ffe08a'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(5, 6); ctx.lineTo(0, 3); ctx.lineTo(-5, 6); ctx.closePath(); ctx.fill(); ctx.stroke();
   ctx.restore();
+  // 自己所在格座標（右上，玩家可互報「我在 C5」）
+  const _col = Math.max(0, Math.min(8, Math.floor((playerPos.x + 60) / _cell)));
+  const _row = Math.max(0, Math.min(8, Math.floor((playerPos.z + 60) / _cell)));
+  ctx.font = "700 13px 'Cinzel', serif"; ctx.fillStyle = '#ffe08a'; ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.lineWidth = 2;
+  ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+  const _coord = String.fromCharCode(65 + _row) + (_col + 1);
+  ctx.strokeText(_coord, S - 6, 6); ctx.fillText(_coord, S - 6, 6);
 }
 
 // 循環換武器（Tab 鍵與操作列武器鈕共用）
