@@ -2719,11 +2719,13 @@ async function connectToServer() {
     myTeam = Number(team);
     const teamEl = document.getElementById('team-display');
     if (teamEl) teamEl.textContent = myTeam === 1 ? t('g_team_blue') : t('g_team_red');
-    // 根據隊伍設定出生點（對稱於 z=0）
-    const spawnZ = myTeam === 1 ? 47 : -47;
-    const spawnX = (Math.random() - 0.5) * 6;
+    // 根據隊伍設定出生點（城堡門外的戰場側，避免與城堡穿模；門在 z=±44）
+    const spawnZ = myTeam === 1 ? 42 : -42;
+    const spawnX = (Math.random() - 0.5) * 3;
     playerPos.set(spawnX, getTerrainHeight(spawnX, spawnZ) + 3, spawnZ);
     if (playerGroup) playerGroup.position.copy(playerPos);
+    // 出生鏡頭對著自己城堡（相機落在戰場側，不會卡進城堡），玩家轉身即面向戰場
+    camYaw = myTeam === 1 ? Math.PI : 0;
     showAnnounce(myTeam === 1 ? t('g_team_blue_side') : t('g_team_red_side'));
   });
   room.onMessage('waveClear', () => {
