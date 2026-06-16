@@ -27,7 +27,7 @@ import { initDmgNumbers, worldToScreen, showDmgNum, updateDmgNumbers } from './e
 import { initSummon, buildKnightMesh, buildGiantMesh, buildWraithMesh, updateSummons, summonAttackAnim } from './entities/summon.js';
 import { initEnemy, initEnemyPhysics, enemies, spawnEnemy, updateEnemyHp, flashEnemyHit, markEnemyHit, removeEnemy, killEnemy, clearEnemies, updateEnemies, updateDyingEnemies } from './entities/enemy.js';
 import { initRemotePlayer, initRemotePlayerPhysics, remotePlayers, spawnRemotePlayer, removeRemotePlayer, updateRemotes, setRemoteAppearance, setRemoteName } from './entities/remotePlayer.js';
-import { buildVoxelMap, createTerrainColliders, getTerrainHeight, updateWorldAnim, setGrassCount } from './world/voxelMap.js';
+import { buildVoxelMap, createTerrainColliders, getTerrainHeight, updateWorldAnim, setGrassCount, drawMinimapBase } from './world/voxelMap.js';
 import { bindQuality, applyQuality, usePostFX, getQuality, QUALITY_PRESETS } from './core/quality.js';
 import { buildSky, updateEnvironment, SKY_HORIZON } from './world/environment.js';
 import { initSoI, createSoICircle, createObelisk, obelisks, updateObelisks } from './world/soi.js';
@@ -150,6 +150,7 @@ window.addEventListener('keydown', e => {
   keys[e.code] = true;
   // 側閃（FEZ §4：Q=左 E=右，按一下觸發一次）
   if ((e.code === 'KeyQ' || e.code === 'KeyE') && !e.repeat) _sidestepReq = e.code === 'KeyE' ? 1 : -1;
+  if (e.code === 'Enter') { _openChat(); return; }   // Enter 開聊天輸入框
   if (e.code === 'KeyB' && !s.active) toggleBuildMenu();
   if (e.code === 'Digit1' && menuState.buildOpen) selectAndPlace('tower');
   if (e.code === 'Digit2' && menuState.buildOpen) selectAndPlace('obelisk');
@@ -2188,13 +2189,15 @@ function _updateNameLabel() {
 }
 
 // 小地圖：俯視島嶼 + 城堡 + 小兵 + 其他玩家 + 自己（朝向箭頭）
+let _miniBase = null;
 function _drawMinimap() {
   const cv = document.getElementById('minimap'); if (!cv) return;
   const ctx = cv.getContext('2d'); if (!ctx) return;
   const S = 150, C = S / 2, sc = (C - 6) / 62;
   const px = (x) => C + x * sc, py = (z) => C + z * sc;
   ctx.clearRect(0, 0, S, S);
-  ctx.fillStyle = 'rgba(46,78,56,0.5)'; ctx.beginPath(); ctx.arc(C, C, 58 * sc, 0, Math.PI * 2); ctx.fill();
+  if (!_miniBase) { try { _miniBase = drawMinimapBase(S); } catch { /* noop */ } }   // 地形底圖（一次生成快取）
+  if (_miniBase) ctx.drawImage(_miniBase, 0, 0);
   ctx.fillStyle = '#6aa8ff'; ctx.fillRect(px(0) - 4, py(50) - 4, 8, 8);    // 藍方主堡
   ctx.fillStyle = '#ff6a6a'; ctx.fillRect(px(0) - 4, py(-50) - 4, 8, 8);   // 紅方主堡
   for (const en of Object.values(enemies)) {

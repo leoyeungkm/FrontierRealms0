@@ -241,6 +241,27 @@ function _vertexColor(x, z, out) {
   out.multiplyScalar(0.93 + hash(x, z) * 0.14);
 }
 
+// 小地圖底圖：用地形高度 + 頂點色畫一張俯視縮圖（外海/海岸/陸地），一次生成由 client 快取
+export function drawMinimapBase(S) {
+  ensureGrid();
+  const cv = document.createElement('canvas'); cv.width = cv.height = S;
+  const ctx = cv.getContext('2d');
+  const C = S / 2, sc = (C - 6) / 62, col = new THREE.Color();
+  const img = ctx.createImageData(S, S), data = img.data;
+  for (let py = 0; py < S; py++) {
+    for (let pxl = 0; pxl < S; pxl++) {
+      const wx = (pxl - C) / sc, wz = (py - C) / sc, di = (py * S + pxl) * 4;
+      if (Math.sqrt(wx * wx + wz * wz) > 60) { data[di] = 28; data[di + 1] = 54; data[di + 2] = 86; data[di + 3] = 190; continue; }   // 外海
+      const gx = Math.round(wx + HX), gz = Math.round(wz + HZ), h = gridH(gx, gz);
+      if (h < SEA_LEVEL) { data[di] = 42; data[di + 1] = 86; data[di + 2] = 130; data[di + 3] = 220; continue; }                       // 淺海/海岸
+      _vertexColor(gx, gz, col);
+      data[di] = col.r * 255; data[di + 1] = col.g * 255; data[di + 2] = col.b * 255; data[di + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return cv;
+}
+
 // ─── 程序化細節貼圖（無縫 wrapped value noise，含 mipmap + 各向異性）──
 // 地形「高清化」核心：頂點色只有 128×128 解析度（近看必糊），
 // 這張 512 tiled 貼圖補回高頻明暗 + 假凹凸 + 粗糙度變化。
