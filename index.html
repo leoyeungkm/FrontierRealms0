@@ -411,7 +411,9 @@
     .act-btn:hover { background: rgba(120,150,210,.28); border-color: rgba(174,224,255,.6); transform: translateY(-1px); }
     .act-btn kbd { font: 700 10px 'Oswald', sans-serif; background: rgba(174,224,255,.18); border: 1px solid rgba(174,224,255,.4); border-radius: 4px; padding: 1px 5px; color: #dff; }
     #chat { position: absolute; bottom: 92px; left: 10px; width: 320px; max-width: 44vw; font: 12px 'Oswald', sans-serif; z-index: 20; }
-    #chat-msgs { display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px; max-height: 30vh; overflow: hidden; }
+    #chat-msgs { display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px; max-height: 32vh; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(120,150,210,.5) transparent; }
+    #chat-msgs::-webkit-scrollbar { width: 6px; }
+    #chat-msgs::-webkit-scrollbar-thumb { background: rgba(120,150,210,.5); border-radius: 3px; }
     .chat-line { display: flex; align-items: baseline; gap: 6px; padding: 3px 9px; border-radius: 7px; background: rgba(8,12,20,.55); border-left: 3px solid #888; text-shadow: 1px 1px 2px #000; animation: chatIn .18s ease; }
     .chat-line .cn { font-weight: 700; flex: 0 0 auto; }
     .chat-line .ct { color: #e6ecf8; word-break: break-word; }

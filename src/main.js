@@ -2271,9 +2271,8 @@ function _addChat(name, text, team) {
   const nb = document.createElement('span'); nb.className = 'cn'; nb.style.color = col; nb.textContent = name;
   const tx = document.createElement('span'); tx.className = 'ct'; tx.textContent = text;
   d.appendChild(nb); d.appendChild(tx); box.appendChild(d);
-  while (box.children.length > 8) box.removeChild(box.firstChild);
+  while (box.children.length > 30) box.removeChild(box.firstChild);   // 常駐保留最近 30 條，不自動淡出
   box.scrollTop = box.scrollHeight;
-  setTimeout(() => { d.style.transition = 'opacity 1s'; d.style.opacity = '0'; setTimeout(() => d.remove(), 1000); }, 14000);
 }
 document.getElementById('chat-input')?.addEventListener('keydown', (e) => {
   e.stopPropagation();
