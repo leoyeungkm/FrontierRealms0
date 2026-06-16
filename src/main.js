@@ -539,6 +539,8 @@ const _mvFwd = new THREE.Vector3(), _mvRight = new THREE.Vector3(), _mvDir = new
 const _camEuler  = new THREE.Euler();
 const _camPitchQ = new THREE.Quaternion(), _camYawQ = new THREE.Quaternion();
 const _camOffset = new THREE.Vector3(), _camLook = new THREE.Vector3(), _camDest = new THREE.Vector3();
+const _camDir = new THREE.Vector3();
+const _KEEP_POS = [[0, 50], [0, -50]];   // 兩座主堡中心（相機防穿建築用）
 
 // ─── Swing / Impact maps ──────────────────────────────────────
 const SWING_MAP = {
@@ -3192,6 +3194,25 @@ function updatePlayer(dt) {
   const yawQ   = _camYawQ.setFromEuler(_camEuler.set(0, camYaw, 0));
   const offset = _camOffset.set(0, 0, camDist).applyQuaternion(pitchQ).applyQuaternion(yawQ);
   const lookTarget = _camLook.copy(playerPos).add(CAM_HEIGHT_OFFSET);
+  // 建築 spring arm：沿視線若穿過塔／方尖碑／主堡，把相機拉近到障礙前
+  const _dir = _camDir.copy(offset).normalize();   // lookTarget → 相機方向
+  let _eff = camDist;
+  const _cyl = (cx, cz, r, yTop) => {                // 視線與垂直圓柱的近交點距離
+    const ox = lookTarget.x - cx, oz = lookTarget.z - cz;
+    const a = _dir.x * _dir.x + _dir.z * _dir.z;
+    if (a < 1e-5) return;
+    const b = 2 * (ox * _dir.x + oz * _dir.z);
+    const c = ox * ox + oz * oz - r * r;
+    let disc = b * b - 4 * a * c;
+    if (disc < 0) return;
+    disc = Math.sqrt(disc);
+    const s = (-b - disc) / (2 * a);
+    if (s > 0.3 && s < _eff && (lookTarget.y + _dir.y * s) < yTop) _eff = s;
+  };
+  for (const tw of towers) _cyl(tw.pos.x, tw.pos.z, 1.4, 6.2);
+  for (const ob of obelisks) _cyl(ob.pos.x, ob.pos.z, 1.6, 7.5);
+  for (const k of _KEEP_POS) _cyl(k[0], k[1], 9.5, 10);
+  if (_eff < camDist) offset.copy(_dir).multiplyScalar(Math.max(2.5, _eff - 0.5));
   if (camShake > 0) {
     camShake -= dt * 4;
     const shk = Math.max(0, camShake);
