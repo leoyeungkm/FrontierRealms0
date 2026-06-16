@@ -2187,6 +2187,12 @@ function _updateNameLabel() {
   else _nameLabel.style.display = 'none';
 }
 
+// HUD 網路延遲顯示（ms + 燈號色：綠<80 / 黃<160 / 紅）
+function _updateNetStat(ms) {
+  const el = document.getElementById('net-ms'); if (el) el.textContent = Math.round(ms) + ' ms';
+  const dot = document.getElementById('net-dot'); if (dot) dot.style.background = ms < 80 ? '#8fd0a0' : ms < 160 ? '#e0c060' : '#e07050';
+}
+
 function _showKicked() {
   if (document.getElementById('kicked-overlay')) return;
   const d = document.createElement('div');
@@ -2307,6 +2313,8 @@ async function connectToServer() {
     else if (type === 'obelisk') createObelisk(Number(x), Number(z));
   });
   room.onMessage('pname', d => setRemoteName(String(d[0]), String(d[1] || '')));   // 遠端玩家名牌顯示真名
+  room.onMessage('pong', t => _updateNetStat(performance.now() - Number(t)));       // 延遲量測：算 RTT
+  setInterval(() => { try { room.send('ping', performance.now()); } catch { /* noop */ } }, 2500);
   // 防多開：同帳號在他處登入 → 本連線被踢，顯示提示、不自動重連
   let _kicked = false;
   room.onMessage('kicked', () => { _kicked = true; _showKicked(); });

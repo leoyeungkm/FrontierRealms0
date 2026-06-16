@@ -382,6 +382,9 @@ export class MyRoom extends Room<MyRoomState> {
       else this.playerBlocks.delete(client.sessionId);
     });
 
+    // 延遲量測：client 送 ping(時戳) → 原樣回 pong，client 算 RTT 顯示 ms
+    this.onMessage('ping', (client, t) => client.send('pong', t));
+
     // Sui 登入：驗證個人訊息簽章 → 綁定 sessionId ↔ 地址（防偽造 ownership）
     this.onMessage('suiAuth', async (client: Client, data: any) => {
       if (!suiEnabled() || !Array.isArray(data)) return;
