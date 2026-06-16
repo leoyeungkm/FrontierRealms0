@@ -1,5 +1,6 @@
 import { ROUND_DURATION, LOBBY_DURATION, CD_DURATION, SUMMON_DEFS } from '../constants.js';
 import { applyDomSegments } from './segbar.js';
+import { t } from './i18n.js';
 
 // ─── DOM refs（模組載入時取得一次）──────────────────────────
 const hpFill     = document.getElementById('hp-fill');
@@ -81,8 +82,8 @@ export function updateKeepBar(keepHp1, keepHp2, maxKeepHp) {
 
 // ─── 回合計時器（測試模式：持續戰鬥，顯示經過時間）────────────
 export function updateRoundTimer(serverTime) {
-  elWave.textContent = '測試戰場';
-  elPhase.textContent = '持續戰鬥';
+  elWave.textContent = t('g_test_field');
+  elPhase.textContent = t('g_continuous');
   elCountdown.textContent = fmtTime(Math.floor(serverTime / 1000));
   elCountdown.style.color = '#aad4ff';
 }
@@ -120,9 +121,9 @@ export function setStatus(text) {
 export function showGameOver(isMyKeep) {
   const title = document.getElementById('gameover-title');
   const sub   = document.getElementById('gameover-sub');
-  if (title) title.textContent = isMyKeep ? '💀 主堡陷落' : '🏆 勝利！';
+  if (title) title.textContent = isMyKeep ? t('g_go_lose') : t('g_go_win');
   if (title) title.style.color = isMyKeep ? '#ff2222' : '#ffcc00';
-  if (sub)   sub.textContent   = isMyKeep ? '敵軍佔領了您的城堡' : '您的軍隊摧毀了敵方城堡！';
+  if (sub)   sub.textContent   = isMyKeep ? t('g_go_lose_sub') : t('g_go_win_sub');
   document.getElementById('gameover-screen').style.display = 'flex';
   document.exitPointerLock();
 }

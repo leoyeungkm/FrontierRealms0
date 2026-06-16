@@ -109,7 +109,7 @@ export function spawnRemotePlayer(sid, team = 1, myTeam = 1) {
   const shortId = sid.slice(-5);
   label.innerHTML = `
     <div style="color:${isEnemy?'#ff8888':'#88ddff'};font-size:11px;text-shadow:1px 1px 2px #000;white-space:nowrap;">
-      ${isEnemy?'🔴':'🔵'} ${shortId}
+      ${isEnemy?'🔴':'🔵'} <span class="rp-name">${shortId}</span>
     </div>
     <div style="background:#111;border-radius:3px;overflow:hidden;height:5px;width:60px;margin:1px auto;position:relative;">
       <div class="rp-hp-fill" style="height:100%;width:100%;background:${isEnemy?'#cc2200':'#22aa44'};transition:width .2s;"></div>
@@ -124,6 +124,7 @@ export function spawnRemotePlayer(sid, team = 1, myTeam = 1) {
     setRemoteAppearance(sid, _pendingApp[sid]);
     delete _pendingApp[sid];
   }
+  if (_pendingName[sid]) { setRemoteName(sid, _pendingName[sid]); delete _pendingName[sid]; }
 }
 
 // ─── 外觀同步（角色自定面板的選擇，server relay）──────────────
@@ -135,6 +136,17 @@ export function setRemoteAppearance(sid, app) {
   if (!rp) { _pendingApp[sid] = app; return; }
   rp.appearance = app;
   _applyRpAppearance(sid, rp, app);
+}
+
+// 遠端玩家角色名（server relay 'pname'）：更新名牌（沒到位前暫存，spawn 後補套用）
+const _pendingName = {};
+export function setRemoteName(sid, name) {
+  if (!name) return;
+  const rp = remotePlayers[sid];
+  if (!rp) { _pendingName[sid] = name; return; }
+  rp.pname = name;
+  const el = rp.label && rp.label.querySelector('.rp-name');
+  if (el) el.textContent = name;
 }
 
 async function _applyRpAppearance(sid, rp, app) {

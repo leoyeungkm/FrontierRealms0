@@ -1,9 +1,11 @@
-import { SKILL_DEFS, WEAPON_SKILL_LISTS, COMMON_SKILLS, WEAPON_LABELS } from '../data/skillDefs.js';
+import { SKILL_DEFS, WEAPON_SKILL_LISTS, COMMON_SKILLS, WEAPON_LABELS, skillName, skillDesc } from '../data/skillDefs.js';
+import { t, getLang, onLangChange } from './i18n.js';
 
 // ─── State ────────────────────────────────────────────────────
 export const treeState = {
   weapon:  'sword_shield',        // 'sword_shield' | 'greatsword' | 'polearm'
   points:  40,                    // 剩餘技能點數
+  maxPoints: 40,                  // 技能點上限（由角色等級決定）
   learned: {},                    // id → level (1–3)
   slots:   Array(9).fill(null),   // slots[0..8] 對應按鍵 1–9，值為 skill id 或 null
   cdTimers: {},                   // id → 剩餘 CD 秒數（每幀更新）
@@ -98,6 +100,7 @@ export function initSkillPanel(onWeaponChange) {
   });
 
   renderPanel();
+  onLangChange(() => { if (isSkillPanelOpen()) renderPanel(); });
 }
 
 export function toggleSkillPanel() {
@@ -113,13 +116,44 @@ export function isSkillPanelOpen() {
 
 export function refreshSkillPanel() { renderPanel(); }
 
+/** 角色等級 → 技能點預算：設定上限並在預算內自動配點 */
+export function setSkillBudget(budget) {
+  treeState.maxPoints = Math.max(1, budget | 0);
+  autoFillSkills(treeState.maxPoints);
+}
+
+/** 在預算內自動學習「共通 + 當前武器」技能（低等少、高等多），並填入施法欄 1–9 */
+export function autoFillSkills(budget = treeState.maxPoints) {
+  treeState.learned = {};
+  treeState.slots = Array(9).fill(null);
+  let pts = Math.max(0, budget | 0);
+  const order = [...COMMON_SKILLS, ...(WEAPON_SKILL_LISTS[treeState.weapon] || [])];
+  let changed = true;
+  while (pts > 0 && changed) {
+    changed = false;
+    for (const id of order) {
+      const cur = treeState.learned[id] || 0;
+      if (cur >= 3) continue;
+      const def = SKILL_DEFS[id];
+      if (def.requires && Object.entries(def.requires).some(([r, l]) => (treeState.learned[r] || 0) < l)) continue;
+      const cost = cur + 1;                       // LV1=1 LV2=2 LV3=3
+      if (pts < cost) continue;
+      treeState.learned[id] = cur + 1; pts -= cost; changed = true;
+    }
+  }
+  treeState.points = pts;
+  const learned = order.filter(id => treeState.learned[id]);
+  for (let i = 0; i < 9; i++) treeState.slots[i] = learned[i] || null;
+  refreshSkillPanel();
+}
+
 // ─── 面板渲染 ─────────────────────────────────────────────────
 function renderPanel() {
   if (!panelEl || panelEl.style.display === 'none') return;
 
   // 技能點數
   panelEl.querySelector('#sp-count').textContent = treeState.points;
-  panelEl.querySelector('#sp-max').textContent   = 40;
+  panelEl.querySelector('#sp-max').textContent   = treeState.maxPoints;
 
   // 武器 tab 高亮
   panelEl.querySelectorAll('[data-weapon]').forEach(btn => {
@@ -157,27 +191,27 @@ function makeSkillCard(id) {
   card.className = 'sk-card' + (curLv > 0 ? ' learned' : '') + (isAssigning ? ' assigning' : '');
 
   const lvStars = '★'.repeat(curLv) + '☆'.repeat(3 - curLv);
-  const nextStatText = canLearnMore ? def.levels[curLv].pw + ' PW | ' + (def.levels[curLv].dmg ?? '') : '滿級';
+  const nextStatText = canLearnMore ? def.levels[curLv].pw + ' PW | ' + (def.levels[curLv].dmg ?? '') : t('g_sk_max');
 
   card.innerHTML = `
     <div class="sk-top">
       <span class="sk-icon">${def.icon}</span>
       <div class="sk-info">
-        <div class="sk-name">${def.nameZh} <small>${def.nameEn}</small></div>
+        <div class="sk-name">${skillName(def)} <small>${getLang() === 'zh' ? def.nameEn : def.nameZh}</small></div>
         <div class="sk-lv">${lvStars}</div>
       </div>
       <div class="sk-right">
         ${canLearnMore && requiresMet
           ? `<button class="sk-btn-learn ${canAfford ? '' : 'disabled'}" data-id="${id}">
-               學習 (${nextCost}pt)
+               ${t('g_sk_learn', { cost: nextCost })}
              </button>`
-          : !requiresMet ? `<span class="sk-req">需前置技能</span>` : `<span class="sk-maxlv">LV MAX</span>`}
+          : !requiresMet ? `<span class="sk-req">${t('g_sk_req')}</span>` : `<span class="sk-maxlv">${t('g_sk_maxlv')}</span>`}
       </div>
     </div>
-    <div class="sk-desc">${def.desc}</div>
+    <div class="sk-desc">${skillDesc(def)}</div>
     ${curLv > 0 ? `<div class="sk-stats">LV${curLv}：${def.levels[curLv-1].pw}PW${def.levels[curLv-1].dmg ? ' / ' + def.levels[curLv-1].dmg + 'dmg' : ''}　CD: ${def.cd}s</div>` : ''}
     ${curLv > 0 ? `<div class="sk-assign-row">
-      裝備到：${[1,2,3,4,5,6,7,8,9].map(n => {
+      ${t('g_sk_equip_to')}${[1,2,3,4,5,6,7,8,9].map(n => {
         const slotSkill = treeState.slots[n-1];
         const active = slotSkill === id;
         return `<button class="sk-slot-btn ${active ? 'active' : ''}" data-assign-id="${id}" data-slot="${n-1}">${n}</button>`;
@@ -220,7 +254,7 @@ function renderSlots() {
     div.innerHTML = `
       <div class="ps-key">${i + 1}</div>
       <div class="ps-icon">${def ? def.icon : '—'}</div>
-      <div class="ps-name">${def ? def.nameZh : '空'}</div>
+      <div class="ps-name">${def ? skillName(def) : t('g_sk_empty')}</div>
       ${lv > 0 ? `<div class="ps-lv">LV${lv}</div>` : ''}
     `;
     div.addEventListener('click', () => { assignToSlot(i, null); });

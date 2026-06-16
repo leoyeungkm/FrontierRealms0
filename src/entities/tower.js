@@ -60,7 +60,7 @@ function _buildTowerMesh() {
   return g;
 }
 
-export function createTower(x, z) {
+export function createTower(x, z, team = 1, mine = true) {
   const g = _buildTowerMesh();
   g.position.set(x, 0, z);
   _scene.add(g);
@@ -71,7 +71,7 @@ export function createTower(x, z) {
     );
   }
 
-  const tower = { pos: new THREE.Vector3(x, 0, z), fireTimer: Math.random() * TOWER_FIRE_RATE, arrows: [] };
+  const tower = { pos: new THREE.Vector3(x, 0, z), fireTimer: Math.random() * TOWER_FIRE_RATE, arrows: [], team, mine };
   towers.push(tower);
   return tower;
 }
@@ -92,11 +92,12 @@ function shootArrow(tower, eid) {
 /** myTeam: 不攻擊友方小兵；room: 發送 towerHit 訊息 */
 export function updateTowers(dt, myTeam, room) {
   for (const t of towers) {
+    const tteam = t.team || myTeam;   // 同步來的塔用自己的歸屬陣營（打對方陣營的小兵）
     t.fireTimer += dt;
     if (t.fireTimer >= TOWER_FIRE_RATE) {
       let nearestEid = null, nearDist = TOWER_RANGE;
       for (const [eid, en] of Object.entries(enemies)) {
-        if (en.team === myTeam) continue;
+        if (en.team === tteam) continue;
         const d = en.group.position.distanceTo(t.pos);
         if (d < nearDist) { nearDist = d; nearestEid = eid; }
       }
@@ -111,7 +112,7 @@ export function updateTowers(dt, myTeam, room) {
       a.mesh.position.addScaledVector(toTarget.normalize(), 16 * dt);
       a.traveled += 16 * dt;
       if (dist < 0.9) {
-        if (room) room.send('towerHit', [a.eid, TOWER_DAMAGE]);
+        if (t.mine && room) room.send('towerHit', [a.eid, TOWER_DAMAGE]);   // 只有自己建的塔才送傷害（避免重複）
         spawnHitSparks(en.group.position.clone().add(new THREE.Vector3(0, 1, 0)));
         flashEnemyHit(a.eid);
         _scene.remove(a.mesh); return false;

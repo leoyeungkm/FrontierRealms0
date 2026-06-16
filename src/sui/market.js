@@ -11,6 +11,19 @@ let _market = MARKET_ID;
 export function setActiveMarket(id) { if (id) _market = id; }
 export function activeMarket() { return _market; }
 
+/** 查鏈上最新一場市場（MarketOpened 事件最新一筆）→ market id；查不到回 null。直接讀鏈，不靠 server room/metadata。 */
+export async function findLatestMarket() {
+  if (!suiEnabled()) return null;
+  try {
+    const r = await suiClient.queryEvents({
+      query: { MoveEventType: `${PACKAGE_ID}::market::MarketOpened` },
+      order: 'descending', limit: 1,
+    });
+    const id = r.data?.[0]?.parsedJson?.market;
+    return id ? String(id) : null;
+  } catch { return null; }
+}
+
 /** 讀市場：{ ra, rb, priceA, priceB, resolved, winner, round, tableA, tableB } */
 export async function getMarket(id = _market) {
   if (!suiEnabled() || !id) return null;
@@ -21,6 +34,8 @@ export async function getMarket(id = _market) {
   return {
     id, round: Number(f.round), resolved: f.resolved, winner: Number(f.winner),
     ra, rb, priceA: rb / tot, priceB: ra / tot,
+    feeBps: Number(f.fee_bps ?? 200),
+    collateral: Number(f.collateral ?? 0),   // 金庫總額（MIST）≈ 流動性/累積押注量
     tableA: f.bal_a?.fields?.id?.id, tableB: f.bal_b?.fields?.id?.id,
   };
 }
@@ -55,6 +70,20 @@ export async function sell(outcome, shares) {
   const tx = new Transaction();
   tx.moveCall({ target: `${PACKAGE_ID}::market::sell`, arguments: [tx.object(_market), tx.pure.u8(outcome), tx.pure.u64(Math.round(shares))] });
   return executeTx(tx);
+}
+
+/** 預估買入結果（鏡像合約 CPMM，純前端預覽用，單位 SUI）
+ *  回 { shares, avgPrice, mult, newPriceA }；amountSui 為投入金額 */
+export function estimateBuy(mkt, outcome, amountSui) {
+  if (!mkt || !(amountSui > 0)) return null;
+  const fee = (mkt.feeBps ?? 200) / 10000;
+  const net = amountSui * (1 - fee);
+  const ra = toSui(mkt.ra), rb = toSui(mkt.rb), prod = ra * rb;
+  let shares, nra, nrb;
+  if (outcome === 0) { nrb = rb + net; nra = prod / nrb; shares = ra + net - nra; }
+  else               { nra = ra + net; nrb = prod / nra; shares = rb + net - nrb; }
+  const avgPrice = shares > 0 ? amountSui / shares : 0;
+  return { shares, avgPrice, mult: avgPrice > 0 ? 1 / avgPrice : 0, newPriceA: nrb / (nra + nrb) };
 }
 
 /** 兌付（結算後勝方份額 1:1）*/

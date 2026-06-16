@@ -9,6 +9,16 @@ export const SUI_NETWORK = (import.meta.env && import.meta.env.VITE_FR0_SUI_NETW
 export const PACKAGE_ID = ENV || '0x1712a9d8fcb6a6325a2336156d9257fa4afc5b3b215985edf85750d53ba7d1fd';
 // 預測市場（B3 CPMM AMM）：當前可交易的 Market 共享物件
 export const MARKET_ID = (import.meta.env && import.meta.env.VITE_FR0_MARKET_ID) || '0x585a99d8d30f146a0612e4d63be52fc0a74628b16b38ee71ed912e037cefde8f';
+// 角色 NFT（character.move）獨立部署的 package；空 → 角色走本地（優雅降級）
+export const CHARACTER_PACKAGE_ID = (import.meta.env && import.meta.env.VITE_FR0_CHARACTER_PACKAGE) || '0x9b033e1c9eb1c9319ab6a2a35cb5baa38b48f84e2c89716c6bbc74c5beac6b39';
+export const characterEnabled = () => CHARACTER_PACKAGE_ID.length > 2;
+// Hero NFT（owned、可交易的角色；身分+等級）。Gear 由 cosmetic NFT 另外裝備。
+export const HERO_PACKAGE_ID = (import.meta.env && import.meta.env.VITE_FR0_HERO_PACKAGE) || '0xe51bd7edc04b6c101e79ac2438e67a778e2ba821e5fa66353d730a3a4578ab1c';
+export const HERO_CONFIG_ID = (import.meta.env && import.meta.env.VITE_FR0_HERO_CONFIG) || '0x0eef570e98739a109377dc593c277ddb99e206c63a50d2932723616892786ef9';
+export const heroEnabled = () => HERO_PACKAGE_ID.length > 2;
+// Gear 市場（泛型 NFT 掛單買賣）
+export const GEARMARKET_PACKAGE_ID = (import.meta.env && import.meta.env.VITE_FR0_GEARMARKET_PACKAGE) || '0x540d5442fb101b77b20ec690d1b3bddb8d8c9a9c4fec794c12a598aa1644c0c0';
+export const gmEnabled = () => GEARMARKET_PACKAGE_ID.length > 2;
 
 export const COSMETIC_TYPE = () => (PACKAGE_ID ? `${PACKAGE_ID}::cosmetic::Cosmetic` : '');
 export const suiEnabled = () => PACKAGE_ID.length > 2;

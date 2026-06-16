@@ -1,7 +1,8 @@
 import { Room, Client } from "@colyseus/core";
 import { Player, Enemy, MyRoomState } from "./schema/MyRoomState";
 import { suiEnabled, verifyLogin, verifyCosmetics } from "../sui/verify";
-import { marketEnabled, resolveMarket, openMarket, currentMarketId } from "../sui/admin";
+import { marketEnabled, resolveMarket, openMarket, currentMarketId, ensureFreshMarket } from "../sui/admin";
+import { heroEnabled, signXp, ensureServerPubkey } from "../sui/hero";
 
 const DURATION_LOBBY     = 7 * 1000;
 const DURATION_COUNTDOWN = 3 * 1000;
@@ -54,6 +55,7 @@ export class MyRoom extends Room<MyRoomState> {
 
   private objectState: any = {};
   private activeRound: number = undefined;
+  private _roundStartedAt = 0;   // 本場開始時的 server 時間 → tick 顯示「本場經過」而非 server 總運行時間
   private enemyCounter: number = 0;
   private enemyAtkTimers: Map<string, number> = new Map();
   private enemyKeepAtkTimers: Map<string, number> = new Map();
@@ -74,6 +76,11 @@ export class MyRoom extends Room<MyRoomState> {
   private appearances: Map<string, any> = new Map();   // sid → 角色外觀（client 自定）
   private playerBlocks: Set<string> = new Set();        // 格擋中的玩家（盾牌右鍵）
   private playerSuiAddr: Map<string, string> = new Map(); // sid → 已驗證的 Sui 地址
+  private playerChar: Map<string, string> = new Map();    // sid → 角色 NFT object id（升級用）
+  // 玩家建造的建築（塔/方尖碑）：同步給所有人、新加入者補發。team = 塔的歸屬陣營
+  private buildings: { sid: string; type: string; x: number; z: number; team: number }[] = [];
+  private playerNames: Map<string, string> = new Map();   // sid → 角色名（遠端名牌顯示用）
+  private playerAddr: Map<string, string> = new Map();    // sid → 宣稱錢包地址（防同帳號雙開用）
 
   /** 鏈上 ownership 驗證：appearance 第 9 欄帶 { a:地址, c:{slot:objectId} }。
    *  用「已驗證綁定」的地址（非 client 宣稱）查鏈，確認 NFT 真為該玩家持有，
@@ -104,8 +111,12 @@ export class MyRoom extends Room<MyRoomState> {
 
   onCreate(options: any) {
     this.maxClients = options.maxClients || 50;
+    this.autoDispose = false;   // 持續維持同一個場（round）：空場也不銷毀，玩家都加入同一場
+    ensureServerPubkey();       // 啟動時把 server 公鑰寫進 Hero Config（升級驗章用）
+    this.setMetadata({ t1: 0, t2: 0, market: currentMarketId() }).catch(() => {});   // 大廳戰況條(t1/t2)＋世界地圖 warbond(market)：room 一啟動就帶上，未入場也讀得到
     this.setState(new MyRoomState());
     this.clock.start();
+    ensureFreshMarket().then(() => this.syncMeta());   // 啟動時若 .env 市場已結算 → 開下一場，並同步 metadata 給世界地圖 warbond
 
     // Round tick (every 1s)：測試模式 — 只開場一次，之後持續戰鬥不重置
     this.clock.setInterval(() => {
@@ -114,7 +125,7 @@ export class MyRoom extends Room<MyRoomState> {
         this.activeRound = 1;
         this.onRoundStart(1);
       }
-      this.broadcast('tick', serverTime);
+      this.broadcast('tick', Math.max(0, serverTime - this._roundStartedAt));   // 本場經過時間（每場歸零，非 server 總運行時間）
     }, 1000);
 
     // Enemy AI + broadcast
@@ -319,6 +330,20 @@ export class MyRoom extends Room<MyRoomState> {
       this.broadcast('playerSummon', [client.sessionId, String(msg[0]), maxHp]);
     });
 
+    // 建築同步（塔／方尖碑）：記錄 + 廣播給所有人（含自己；team 由 server 權威決定）
+    this.onMessage('build', (client, msg) => {
+      if (!Array.isArray(msg)) return;
+      const type = String(msg[0]);
+      if (type !== 'tower' && type !== 'obelisk') return;
+      const x = Number(msg[1]), z = Number(msg[2]);
+      if (!isFinite(x) || !isFinite(z)) return;
+      const p = this.state.players.get(client.sessionId);
+      const team = p ? p.team : 1;
+      this.buildings.push({ sid: client.sessionId, type, x, z, team });
+      if (this.buildings.length > 400) this.buildings.shift();
+      this.broadcast('build', [client.sessionId, type, x, z, team]);
+    });
+
     this.onMessage("summonAttack", (client, msg) => {
       const attacker = this.state.players.get(client.sessionId);
       if (!attacker || !attacker.alive) return;
@@ -362,7 +387,16 @@ export class MyRoom extends Room<MyRoomState> {
       if (!suiEnabled() || !Array.isArray(data)) return;
       const [addr, sig] = data;
       if (await verifyLogin(String(addr), String(sig), client.sessionId)) {
-        this.playerSuiAddr.set(client.sessionId, String(addr));
+        // 防多開：同一帳號（地址）若已有其他連線 → 踢掉舊連線（保留最新登入）
+        const addrStr = String(addr);
+        this.playerSuiAddr.forEach((a, sid) => {
+          if (a === addrStr && sid !== client.sessionId) {
+            const old = this.clients.find(c => c.sessionId === sid);
+            if (old) { old.send('kicked', 'multilogin'); old.leave(4001); }
+            this.playerSuiAddr.delete(sid);
+          }
+        });
+        this.playerSuiAddr.set(client.sessionId, addrStr);
         client.send('suiAuthOk', addr);
       } else {
         client.send('suiAuthFail', null);
@@ -374,6 +408,42 @@ export class MyRoom extends Room<MyRoomState> {
       this.appearances.set(client.sessionId, data);
       this.broadcast('appearance', [client.sessionId, data], { except: client });
       this.verifyGearOnChain(client, data);
+    });
+
+    // 角色 NFT id：玩家加入時送來，作為結算授權升級的對象
+    this.onMessage('character', (client: Client, id: any) => {
+      if (!id) return;
+      const idStr = String(id);
+      // 防雙開：同一角色 NFT 不可同時兩個連線（會重複結算/佔位）→ 踢掉舊連線
+      this.playerChar.forEach((cid, sid) => {
+        if (cid === idStr && sid !== client.sessionId) {
+          const old = this.clients.find(c => c.sessionId === sid);
+          if (old) { old.send('kicked', 'multilogin'); old.leave(4001); }
+          this.playerChar.delete(sid);
+        }
+      });
+      this.playerChar.set(client.sessionId, idStr);
+    });
+
+    // 角色名字：relay 給其他人（遠端玩家名牌顯示真名，而非 sessionId 片段）
+    this.onMessage('pname', (client: Client, name: any) => {
+      const nm = String(name || '').slice(0, 24);
+      this.playerNames.set(client.sessionId, nm);
+      this.broadcast('pname', [client.sessionId, nm], { except: client });
+    });
+
+    // 防雙開（不靠簽章）：同一錢包地址只能有一個連線 → 進場宣稱地址，撞到就踢舊連線
+    this.onMessage('whoami', (client: Client, addr: any) => {
+      const a = String(addr || '');
+      if (!a) return;
+      this.playerAddr.forEach((pa, sid) => {
+        if (pa === a && sid !== client.sessionId) {
+          const old = this.clients.find(c => c.sessionId === sid);
+          if (old) { old.send('kicked', 'multilogin'); old.leave(4001); }
+          this.playerAddr.delete(sid);
+        }
+      });
+      this.playerAddr.set(client.sessionId, a);
     });
 
     this.onMessage("*", (client: Client, type: any, message: any) => {
@@ -392,7 +462,7 @@ export class MyRoom extends Room<MyRoomState> {
   onJoin(client: Client, options: any) {
     console.log(client.sessionId, "joined!");
     const player = new Player();
-    this.setPlayerTeam(player);
+    this.setPlayerTeam(player, options?.nation);
     this.state.players.set(client.sessionId, player);
     this.broadcast('playerJoined', [client.sessionId, player.team]);
 
@@ -410,6 +480,11 @@ export class MyRoom extends Room<MyRoomState> {
     // 傳送當前主堡血量
     client.send('keepUpdate', [1, this.state.keepHp1]);
     client.send('keepUpdate', [2, this.state.keepHp2]);
+
+    // 同步「該場」預測市場 ID：讓重入／中途加入的玩家也認得到當前 warbond，
+    // 不必等下一波 broadcast。currentMarketId() 即使沒設 ADMIN_SECRET 也會回 env 的 FR0_MARKET_ID。
+    const mid = currentMarketId();
+    if (mid) client.send('marketNew', mid);
 
     // 補發目前仍在召喚狀態的玩家（reconnect 後恢復召喚外觀）
     this.playerSummons.forEach((info, sid) => {
@@ -431,6 +506,14 @@ export class MyRoom extends Room<MyRoomState> {
         existingEnemies.push([eid, enemy.x, enemy.z, enemy.hp, enemy.maxHp, enemy.wave, enemy.team]);
     });
     if (existingEnemies.length > 0) client.send('enemySpawn', existingEnemies);
+
+    // 補發場上已建建築（塔／方尖碑），讓新加入者也看得到別人蓋的
+    this.buildings.forEach(b => client.send('build', [b.sid, b.type, b.x, b.z, b.team]));
+
+    // 補發現有玩家的角色名（遠端名牌顯示真名）
+    this.playerNames.forEach((nm, sid) => { if (sid !== client.sessionId) client.send('pname', [sid, nm]); });
+
+    this.syncMeta();   // 更新房間 metadata（兩隊人數 → 大廳世界地圖戰況條顯示 Minas ⚔ Calaadia）
   }
 
   onLeave(client: Client, consented: boolean) {
@@ -440,7 +523,16 @@ export class MyRoom extends Room<MyRoomState> {
     this.appearances.delete(client.sessionId);
     this.playerBlocks.delete(client.sessionId);
     this.playerSuiAddr.delete(client.sessionId);
+    this.playerChar.delete(client.sessionId);
+    this.playerNames.delete(client.sessionId);
+    this.playerAddr.delete(client.sessionId);
     this.broadcast('playerLeft', client.sessionId);
+    this.syncMeta();
+    // 全員離場且已分出勝負 → 重置成乾淨新場（清場/滿血/復活），供下次出征；不在原場硬開下一輪
+    if (this.state.players.size === 0 && (this.keepDestroyed1 || this.keepDestroyed2)) {
+      this.activeRound = (this.activeRound || 1) + 1;
+      this.onRoundStart(this.activeRound);
+    }
   }
 
   onDispose() { console.log("room", this.roomId, "disposing..."); }
@@ -448,10 +540,11 @@ export class MyRoom extends Room<MyRoomState> {
   // ── Round / Wave ──────────────────────────────────────────────
 
   onRoundStart(round: number) {
+    this._roundStartedAt = this.clock.elapsedTime;   // 本場開始 → timer 每場從 0 起算
     this.state.players.forEach(player => {
       player.hp = 100; player.alive = true;
     });
-    this.state.enemies.forEach((_, id) => this.state.enemies.delete(id));
+    Array.from(this.state.enemies.keys()).forEach((id) => this.state.enemies.delete(id));   // 用 keys 快照刪，避免迭代中修改
     this.enemyAtkTimers.clear();
     this.enemyKeepAtkTimers.clear();
     this.enemyAtKeep.clear();
@@ -466,6 +559,7 @@ export class MyRoom extends Room<MyRoomState> {
     this.keepDestroyed2   = false;
     this.broadcast('keepUpdate', [1, this.state.keepHp1]);
     this.broadcast('keepUpdate', [2, this.state.keepHp2]);
+    this.broadcast('roundRestart', round);   // client：收起結算畫面、清場、恢復戰鬥
 
     this.clock.setTimeout(() => this.spawnWave(round), DURATION_LOBBY + DURATION_COUNTDOWN);
   }
@@ -543,7 +637,7 @@ export class MyRoom extends Room<MyRoomState> {
     enemy.alive = false;
     this.enemyAtKeep.delete(enemyId);
     this.clock.setTimeout(() => {
-      this.state.enemies.delete(enemyId);
+      if (this.state.enemies.has(enemyId)) this.state.enemies.delete(enemyId);   // 可能已被 onRoundStart 清場 → 先檢查，免 schema warning
       this.enemyAtkTimers.delete(enemyId);
       this.enemyKeepAtkTimers.delete(enemyId);
       this.enemyWaypoints.delete(enemyId);
@@ -802,31 +896,58 @@ export class MyRoom extends Room<MyRoomState> {
       this.keepDestroyed1 = true;
       this.broadcast('keepDestroyed', 1);  // 藍方主堡被摧毀，紅方(Calaadia=1)勝
       this.resolvePredictionMarket(1);
+      this.grantMatchXp(1);
     }
     if (team === 2 && this.state.keepHp2 <= 0 && !this.keepDestroyed2) {
       this.keepDestroyed2 = true;
       this.broadcast('keepDestroyed', 2);  // 紅方主堡被摧毀，藍方(Minas=0)勝
       this.resolvePredictionMarket(0);
+      this.grantMatchXp(0);
     }
   }
 
-  /** 預測市場自動結算（server 當 oracle）：勝方上鏈 resolve → 開新市 → 廣播 */
+  /** 預測市場自動結算（server 當 oracle）：勝方上鏈 resolve → 開新市 → 廣播。
+   *  即使 resolve 失敗（server 重啟後市場已被結算過＝EResolved）也照常開新一輪市場，避免卡死。 */
   private resolvePredictionMarket(winnerNation: number) {
     if (!marketEnabled()) return;
     const resolvedMarket = currentMarketId();
     (async () => {
       const ok = await resolveMarket(winnerNation);
-      if (!ok) return;
-      this.broadcast('marketResolved', [resolvedMarket, winnerNation]);  // client 自動兌付
-      const next = await openMarket((this.state.wave || 1) + 1);
-      if (next) this.broadcast('marketNew', next);                       // client 切到新市
+      if (ok) this.broadcast('marketResolved', [resolvedMarket, winnerNation]);  // 成功才通知 client 兌付
+      const next = await openMarket((this.state.wave || 1) + 1);                 // 不論成敗都開新市
+      if (next) { this.broadcast('marketNew', next); this.syncMeta(); }          // 切新市 + 更新 metadata（世界地圖同步）
     })();
+  }
+
+  /** 回合結束：server 簽 XP 憑證發給各玩家（玩家自行送交易、合約驗章升級）。 */
+  private grantMatchXp(winnerNation: number) {
+    if (!heroEnabled()) return;
+    this.clients.forEach((client: Client) => {
+      const heroId = this.playerChar.get(client.sessionId);
+      if (!heroId) return;
+      const p = this.state.players.get(client.sessionId);
+      const nation = p && p.team === 1 ? 0 : 1;                   // team1→Minas(0)、team2→Calaadia(1)
+      const amount = 200 + (nation === winnerNation ? 200 : 0);  // 參與 200 +（勝方再 +200）
+      const nonce = Date.now() + Math.floor(Math.random() * 1000); // 單調遞增、唯一
+      signXp(heroId, amount, nonce).then(sig => { if (sig) client.send('heroXp', { amount, nonce, sig }); });
+    });
   }
 
   // ── Helpers ───────────────────────────────────────────────────
 
-  setPlayerTeam(player: Player) {
-    // 平衡分配：哪方人少就加入哪方
+  // 把兩隊即時人數寫進房間 metadata（team1=藍=Minas、team2=紅=Calaadia）
+  // 客戶端 getAvailableRooms 讀 metadata.t1/t2 → 世界地圖戰況條顯示交戰雙方人數
+  syncMeta() {
+    let t1 = 0, t2 = 0;
+    this.state.players.forEach(p => { if (p.team === 1) t1++; else if (p.team === 2) t2++; });
+    this.setMetadata({ t1, t2, market: currentMarketId() }).catch(() => {});   // market：世界地圖 warbond 同步當前市場
+  }
+
+  setPlayerTeam(player: Player, nation?: any) {
+    // 按效忠國家分隊：Minas(0)=team1(藍)、Calaadia(1)=team2(紅) —— 選哪國一定替哪國打
+    const n = Number(nation);
+    if (n === 0 || n === 1) { player.team = n === 1 ? 2 : 1; return; }
+    // 無國家資訊（舊客戶端／未選角）→ 退回平衡分配
     let c1 = 0, c2 = 0;
     this.state.players.forEach(p => {
       if (p.team === 1) c1++; else if (p.team === 2) c2++;

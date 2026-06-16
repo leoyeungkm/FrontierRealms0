@@ -233,7 +233,7 @@
     #intro-lang:hover { color: #fff; border-color: #aeb8cf; }
     #intro-card {
       width: 460px; max-width: 94vw; max-height: 94vh; overflow-y: auto;
-      padding: 28px 32px 24px; text-align: center; position: relative; color: #c4cde0;
+      padding: 28px 32px 24px; text-align: center; position: relative; z-index: 1; color: #c4cde0;
       background: linear-gradient(180deg, rgba(14,16,26,0.82) 0%, rgba(8,9,16,0.9) 100%);
       border: 1px solid rgba(120,140,200,0.25); border-radius: 14px;
       box-shadow: 0 24px 80px rgba(0,0,0,0.72), inset 0 1px 0 rgba(255,255,255,0.06);
@@ -304,6 +304,150 @@
       box-shadow: none; cursor: not-allowed; font: 500 13px 'Oswald', sans-serif; letter-spacing: 1px;
     }
     #intro-hint { font: 10px 'Oswald', sans-serif; color: #6a7488; margin-top: 12px; letter-spacing: .5px; }
+    #intro-charname { width: 100%; box-sizing: border-box; margin-top: 8px; padding: 9px 12px; border-radius: 8px;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(120,140,200,0.3); color: #e6edf7;
+      font: 13px 'Oswald', sans-serif; outline: none; }
+    #intro-charname:focus { border-color: #6f9aff; box-shadow: 0 0 8px rgba(111,154,255,0.3); }
+    #intro-charname::placeholder { color: #6a7488; }
+    #intro-create-hint { font: 10px 'Oswald', sans-serif; color: #6a7488; margin-top: 5px; letter-spacing: .3px; }
+    /* 進入世界地圖（主 CTA）+ 建立角色按鈕 */
+    #intro-tomap {
+      font: 700 15px 'Cinzel', serif; letter-spacing: 2px; width: 100%; margin-top: 16px; padding: 13px;
+      cursor: pointer; border-radius: 9px; color: #07101f; border: none;
+      background: linear-gradient(180deg, #9ec1ff, #5f86d8);
+      box-shadow: 0 6px 22px rgba(95,134,216,0.4), inset 0 1px 0 rgba(255,255,255,0.35);
+      transition: all .15s;
+    }
+    #intro-tomap:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
+    #intro-tomap:active:not(:disabled) { transform: translateY(1px); }
+    #intro-tomap:disabled {
+      background: rgba(255,255,255,0.05); color: #6a7488; cursor: not-allowed; box-shadow: none;
+      font: 500 13px 'Oswald', sans-serif; letter-spacing: 1px;
+    }
+    #intro-create {
+      width: 100%; margin-top: 10px; padding: 11px; cursor: pointer; border-radius: 8px; border: none;
+      font: 600 13px 'Oswald', sans-serif; letter-spacing: 1px; color: #07101f;
+      background: linear-gradient(180deg, #7ad6a0, #46a878); transition: all .15s;
+    }
+    #intro-create:hover:not(:disabled) { filter: brightness(1.08); }
+    #intro-create:disabled { background: rgba(255,255,255,0.05); color: #6a7488; cursor: not-allowed; }
+    /* 角色選擇 roster */
+    #intro-roster-list { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
+    .rh-card {
+      display: flex; align-items: center; gap: 10px; padding: 8px 10px; cursor: pointer; text-align: left; width: 100%;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(120,140,200,0.22);
+      border-left: 3px solid var(--nc, #6f86d0); border-radius: 9px; color: #dce6f7; transition: all .12s;
+    }
+    .rh-card:hover { background: rgba(255,255,255,0.07); }
+    .rh-card.sel { background: rgba(255,255,255,0.09); box-shadow: 0 0 14px var(--nc, #6f86d0); }
+    .rh-img { width: 42px; height: 42px; border-radius: 7px; object-fit: cover; background: #0c1018; flex: none; }
+    .rh-dot { width: 42px; height: 42px; border-radius: 7px; flex: none; box-shadow: inset 0 0 12px rgba(0,0,0,0.45); }
+    .rh-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .rh-name { font: 700 14px 'Cinzel', serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rh-meta { font: 10px 'Oswald', sans-serif; color: #9fb0d8; }
+    #intro-newchar { margin-top: 8px; }
+    /* ── 全頁世界地圖 hub ── */
+    #intro-card.map-mode { width: 1180px; max-width: 97vw; }
+    #intro-card.map-mode #intro-logo,
+    #intro-card.map-mode #intro-sub,
+    #intro-card.map-mode #intro-title,
+    #intro-card.map-mode #intro-hint { display: none; }
+    #map-hub { display: grid; grid-template-columns: 1fr 360px; gap: 22px; text-align: left; }
+    @media (max-width: 860px) { #map-hub { grid-template-columns: 1fr; } }
+    #map-main { min-width: 0; }
+    #map-side { display: flex; flex-direction: column; max-height: 80vh; overflow-y: auto; padding-right: 2px; }
+    #map-side::-webkit-scrollbar { width: 6px; }
+    #map-side::-webkit-scrollbar-thumb { background: rgba(120,140,200,0.4); border-radius: 3px; }
+    #map-captions { display: flex; gap: 8px; margin: 6px 0 12px; flex-wrap: wrap; }
+    .cap { flex: 1 1 0; min-width: 118px; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 9px; cursor: pointer; text-align: left;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(120,140,200,0.18); border-left: 3px solid var(--nc, #6f86d0); color: #dce6f7; transition: all .12s; }
+    .cap:hover { background: rgba(255,255,255,0.08); border-color: var(--nc, #6f86d0); }
+    .cap.cap-locked { opacity: 0.55; }
+    .cap-txt { display: flex; flex-direction: column; font: 700 12px 'Cinzel', serif; line-height: 1.25; min-width: 0; }
+    .cap-txt small { font: 9px 'Oswald', sans-serif; color: #9fb0d8; font-weight: 400; }
+    /* 領域地圖 territory grid（FEZ 式：一堆領地，只有戰場可進）*/
+    #intro-map { padding: 12px; min-height: 300px; }
+    #terr-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }
+    @media (max-width: 1000px) { #terr-grid { grid-template-columns: repeat(3, 1fr); } }
+    .terr { position: relative; padding: 16px 8px; border-radius: 10px; text-align: center;
+      border: 1px solid rgba(120,140,200,0.2); background: rgba(255,255,255,0.03); color: #c4cde0; font: 700 12px 'Cinzel', serif; }
+    .terr.owned0 { border-left: 3px solid #4f86d8; } .terr.owned1 { border-left: 3px solid #d5494a; }
+    .terr.locked { opacity: 0.42; }
+    .terr.active { cursor: pointer; color: #fff; border: 1px solid #8fb0ff;
+      background: linear-gradient(180deg, rgba(111,154,255,0.24), rgba(20,26,42,0.6));
+      box-shadow: 0 0 22px rgba(111,154,255,0.45); animation: bfpulse 2s infinite; }
+    .terr.active:hover { filter: brightness(1.12); transform: translateY(-1px); }
+    .terr .terr-sub { display: block; font: 9px 'Oswald', sans-serif; color: #9fb0d8; margin-top: 4px; font-weight: 400; letter-spacing: .5px; }
+    .terr .terr-lock { position: absolute; top: 6px; right: 8px; font-size: 10px; opacity: .55; }
+    /* 側欄分頁 */
+    #map-info { display: flex; align-items: center; gap: 14px; margin-top: 12px; padding: 11px 16px; border-radius: 10px;
+      background: rgba(20,26,42,0.6); border: 1px solid rgba(120,140,200,0.22); }
+    #map-info.mi-warbg { border-color: rgba(225,120,90,0.55);
+      background: linear-gradient(180deg, rgba(64,28,24,0.5), rgba(20,26,42,0.6)); box-shadow: 0 0 20px rgba(225,120,90,0.22); }
+    .mi-name { font: 700 16px 'Cinzel', serif; color: #eaf2ff; }
+    .mi-state { font: 11px 'Oswald', sans-serif; display: inline-block; padding: 3px 11px; border-radius: 999px; white-space: nowrap; letter-spacing: .5px; }
+    .mi-war { color: #ff9a7a; background: rgba(225,90,60,0.22); animation: bfpulse 1.6s infinite; }
+    .mi-peace { color: #8fd0a0; background: rgba(60,180,110,0.14); }
+    .mi-sub { font: 11px 'Oswald', sans-serif; color: #9fb0d8; margin-left: auto; white-space: nowrap; }
+    .mi-towar { margin-left: 12px; font: 700 12px 'Cinzel', serif; letter-spacing: 1px; cursor: pointer; border: none; border-radius: 8px; padding: 8px 16px; white-space: nowrap;
+      color: #07101f; background: linear-gradient(180deg, #cfe0ff 0%, var(--nc, #6f86d0) 100%);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.4); transition: all .15s; }
+    .mi-towar:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    .mi-side { font: 700 12px 'Oswald', sans-serif; white-space: nowrap; }
+    .mi-vs { margin: 0 7px; color: #c9b27a; font-weight: 700; }
+    .settle-block { font: 14px 'Oswald', sans-serif; color: #cfe0ff; background: rgba(255,255,255,.05); border-radius: 8px; padding: 10px 14px; text-align: center; line-height: 1.5; }
+    .settle-btn { font: 700 13px 'Oswald', sans-serif; letter-spacing: .5px; cursor: pointer; border: none; border-radius: 8px; padding: 10px 20px; color: #e8eefc; background: rgba(90,110,150,.5); transition: all .15s; }
+    .settle-btn:hover { filter: brightness(1.15); transform: translateY(-1px); }
+    .settle-btn:disabled { opacity: .6; cursor: default; transform: none; }
+    .settle-btn-gold { color: #1a1206; background: linear-gradient(180deg,#f2d98c,#caa64e); }
+    .settle-btn-blue { color: #07101f; background: linear-gradient(180deg,#cfe0ff,#6f86d0); }
+    .cc-pending { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; font: 12px 'Oswald', sans-serif; color: #ffe0a0; }
+    .cc-pbtn { font: 700 11px 'Oswald', sans-serif; cursor: pointer; border: none; border-radius: 6px; padding: 5px 12px; color: #1a1206; background: linear-gradient(180deg,#f2d98c,#caa64e); white-space: nowrap; }
+    .cc-pbtn:hover { filter: brightness(1.1); }
+    .cc-pbtn:disabled { opacity: .6; cursor: default; }
+    .cc-pnote { font-size: 10px; opacity: .7; color: #9fb0d8; white-space: nowrap; }
+    #map-tabs { display: flex; gap: 6px; margin: 4px 0 8px; }
+    .map-tab { flex: 1; padding: 9px; cursor: pointer; border-radius: 8px 8px 0 0;
+      border: 1px solid rgba(120,140,200,0.2); border-bottom: none; background: rgba(255,255,255,0.03);
+      color: #8794ad; font: 600 11px 'Oswald', sans-serif; letter-spacing: 1px; text-transform: uppercase; }
+    .map-tab.active { background: rgba(120,150,230,0.16); color: #eaf2ff; }
+    /* NFT 市場 */
+    #intro-nftmkt .nm-hint { font: 10px 'Oswald', sans-serif; color: #7b88a0; margin: 4px 0 9px; line-height: 1.5; }
+    .nm-card { display: flex; align-items: center; gap: 9px; padding: 6px 8px; margin-bottom: 5px;
+      background: rgba(255,255,255,0.04); border-radius: 8px; border-left: 3px solid var(--nc, #6f86d0); }
+    .nm-img { width: 38px; height: 38px; border-radius: 6px; object-fit: cover; background: #0c1018; flex: none; }
+    .nm-icon { display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .nm-info { flex: 1; min-width: 0; font: 12px 'Oswald', sans-serif; color: #dce6f7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .nm-info small { display: block; color: #9fb0d8; font-size: 9px; }
+    .nm-trade { font: 600 10px 'Oswald', sans-serif; color: #07101f; background: linear-gradient(180deg,#9ec1ff,#5f86d8);
+      border-radius: 6px; padding: 6px 10px; text-decoration: none; white-space: nowrap; }
+    .nm-trade:hover { filter: brightness(1.1); }
+    .nm-sec { font: 600 11px 'Oswald', sans-serif; color: #aeb8cf; letter-spacing: 2px; text-transform: uppercase; margin: 12px 0 6px; }
+    .nm-price { width: 60px; padding: 5px 6px; border-radius: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(120,140,200,0.3); color: #e6edf7; font: 11px 'Oswald', sans-serif; outline: none; }
+    .nm-list, .nm-buy, .nm-delist { font: 600 10px 'Oswald', sans-serif; cursor: pointer; border-radius: 6px; padding: 6px 11px; border: none; white-space: nowrap; }
+    .nm-list { color: #07101f; background: linear-gradient(180deg,#7ad6a0,#46a878); }
+    .nm-buy { color: #07101f; background: linear-gradient(180deg,#9ec1ff,#5f86d8); }
+    .nm-demo { opacity: 0.85; filter: grayscale(0.15); }
+    .nm-demohint { font: 10px 'Oswald', sans-serif; color: #8fa0c0; opacity: 0.75; margin: 2px 0 6px; line-height: 1.4; }
+    .nm-delist { color: #aeb8cf; background: transparent; border: 1px solid #66728c; }
+    .nm-list:hover, .nm-buy:hover { filter: brightness(1.1); }
+    /* NFT 分頁：隱藏地圖，市場用整頁（卡片響應式排版）*/
+    #map-hub.nft-full { grid-template-columns: 1fr; }
+    #map-hub.nft-full #map-main { display: none; }
+    #map-hub.nft-full #intro-nftmkt { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 8px; align-items: start; }
+    #map-hub.nft-full #intro-nftmkt .nm-hint, #map-hub.nft-full #intro-nftmkt .nm-sec { grid-column: 1 / -1; }
+    /* 選單角色卡（造形預覽 + 名稱/等級/XP） */
+    #intro-char { display: none; align-items: center; gap: 12px; margin-top: 10px; padding: 10px 12px;
+      background: rgba(10,16,30,0.5); border: 1px solid rgba(120,140,200,0.18); border-radius: 12px; }
+    #intro-char-cv { width: 96px; height: 120px; flex: none; border-radius: 8px;
+      background: radial-gradient(ellipse at 50% 35%, #2a3350 0%, #0c1018 82%); }
+    #intro-char-info { flex: 1; text-align: left; min-width: 0; }
+    .cc-name { font: 700 16px 'Cinzel', serif; color: #eaf2ff; }
+    .cc-lv { font: 700 12px 'Oswald', sans-serif; color: #ffe08a; margin-left: 4px; }
+    .cc-nation { font: 11px 'Oswald', sans-serif; margin: 3px 0 7px; letter-spacing: .3px; }
+    .cc-xpbar { height: 8px; border-radius: 5px; background: #0c1120; overflow: hidden; border: 1px solid rgba(120,140,200,.2); }
+    .cc-xpbar > div { height: 100%; background: linear-gradient(90deg,#6f9aff,#9ec1ff); transition: width .4s; }
+    .cc-xptext { font: 9px 'Oswald', sans-serif; color: #7b88a0; margin-top: 3px; }
     /* 世界地圖：暗色星圖戰役圖 */
     #intro-map {
       margin-top: 4px; border-radius: 10px; overflow: hidden;
@@ -328,6 +472,39 @@
     .wb-note { font: 11px 'Oswald', sans-serif; color: #7b88a0; text-align: left; margin-top: 2px; }
     .wb-claim { width: 100%; margin-top: 6px; padding: 9px; border-radius: 8px; cursor: pointer; font: 600 13px 'Oswald', sans-serif; color: #1a1206; background: linear-gradient(180deg,#f0c64a,#d99a2b); border: none; }
     @keyframes bfpulse { 0%,100%{opacity:.35} 50%{opacity:.9} }
+
+    /* ── 預測市場 widget（Polymarket 式）── */
+    .wb-card { margin-top: 12px; text-align: left; background: rgba(10,16,30,0.5); border: 1px solid rgba(120,140,200,0.18); border-radius: 12px; padding: 12px; }
+    .wb-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .wb-q { font: 700 13px 'Cinzel', serif; color: #eaf2ff; }
+    .wb-pill { font: 600 9px 'Oswald', sans-serif; letter-spacing: .5px; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+    .wb-live { color: #7ee0a0; background: rgba(60,200,120,0.14); }
+    .wb-end { color: #e0c14a; background: rgba(220,170,60,0.14); }
+    .wb-sub { font: 10px 'Oswald', sans-serif; color: #7b88a0; margin: 3px 0 8px; letter-spacing: .3px; }
+    .wb-bar { display: flex; height: 22px; border-radius: 6px; overflow: hidden; background: #0c1120; }
+    .wb-seg { display: flex; align-items: center; justify-content: center; font: 700 11px 'Oswald', sans-serif; color: #07101f; min-width: 24px; transition: width .5s ease; }
+    .wb-spark { width: 100%; height: 22px; margin-top: 6px; display: block; opacity: .8; }
+    .wb-amts { display: flex; align-items: center; gap: 5px; margin: 9px 0 4px; }
+    .wb-amt { font: 600 11px 'Oswald', sans-serif; cursor: pointer; color: #aeb8cf; background: rgba(255,255,255,0.05); border: 1px solid rgba(120,140,200,0.25); border-radius: 6px; padding: 4px 11px; }
+    .wb-amt.sel { color: #07101f; background: #8fb0ff; border-color: #8fb0ff; }
+    .wb-amtlbl { font: 10px 'Oswald', sans-serif; color: #6a7488; }
+    .wb-out { margin-top: 8px; padding: 9px; border-radius: 9px; background: rgba(255,255,255,0.035); border-left: 3px solid var(--nc, #6f86d0); }
+    .wb-out-top { display: flex; justify-content: space-between; align-items: baseline; }
+    .wb-name { font: 700 13px 'Cinzel', serif; color: #dce6f7; display: flex; align-items: center; gap: 6px; }
+    .wb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--nc, #6f86d0); box-shadow: 0 0 6px var(--nc, #6f86d0); }
+    .wb-odds { font: 700 13px 'Oswald', sans-serif; color: var(--nc, #dce6f7); }
+    .wb-hold { font: 10px 'Oswald', sans-serif; color: #8794ad; margin-top: 3px; }
+    .wb-act { display: flex; gap: 6px; margin-top: 7px; }
+    .wb-buy { flex: 1; font: 600 12px 'Oswald', sans-serif; cursor: pointer; color: #07101f; background: var(--nc, #6f86d0); border: none; border-radius: 7px; padding: 7px; }
+    .wb-buy b { font-weight: 700; opacity: .85; }
+    .wb-buy:hover:not(:disabled) { filter: brightness(1.12); }
+    .wb-sellbtn { font: 500 12px 'Oswald', sans-serif; cursor: pointer; color: #aeb8cf; background: transparent; border: 1px solid #66728c; border-radius: 7px; padding: 7px 12px; }
+    .wb-buy:disabled, .wb-sellbtn:disabled { opacity: .5; cursor: default; }
+    .wb-foot { font: 11px 'Oswald', sans-serif; color: #aeb8cf; margin-top: 9px; text-align: center; }
+    /* 3D 地圖中央 overlay（疊在 Three.js canvas 上）*/
+    .map-center3d { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 2; text-align: center; cursor: pointer; }
+    .map-count3d { font: 600 30px 'Oswald', sans-serif; color: #fff; line-height: 1; text-shadow: 0 0 14px rgba(120,160,255,0.85); }
+    .map-sub3d { font: 700 9px 'Cinzel', serif; color: #9fb0d8; letter-spacing: 2px; margin-top: 3px; }
 
     /* ── 場內預測市場 HUD（B）── */
     #market-hud {
@@ -416,27 +593,51 @@
         </div>
         <div id="intro-status"></div>
 
-        <div class="intro-label" data-i18n="sec_pledge"></div>
-        <div id="intro-nations"></div>
+        <div id="intro-roster"></div>
+
+        <div id="intro-pledge">
+          <div class="intro-label" data-i18n="sec_pledge"></div>
+          <div id="intro-nations"></div>
+          <input id="intro-charname" type="text" maxlength="24" autocomplete="off" />
+          <div id="intro-create-hint" data-i18n="g_create_hint"></div>
+          <button id="intro-create" disabled></button>
+        </div>
 
         <button id="intro-tomap" disabled></button>
       </div>
 
       <!-- 階段二：世界地圖（Aeloria + 五王國 + 戰場在線人數）-->
       <div id="intro-stage-map" style="display:none;">
-        <div class="intro-label" data-i18n="map_label"></div>
-        <div id="intro-map"><!-- SVG 由 intro.js 注入 --></div>
-        <div id="intro-allegiance"></div>
-        <div id="intro-warbonds"><!-- War Bonds 由 intro.js 注入 --></div>
-        <button id="intro-enter" disabled></button>
-        <button class="intro-btn intro-ghost" id="intro-back" data-i18n="back" style="margin-top:8px;"></button>
+        <div id="map-hub">
+          <div id="map-main">
+            <div class="intro-label" data-i18n="map_label"></div>
+            <div id="map-captions"></div>
+            <div id="intro-map"><!-- 領域地圖由 intro.js 注入 --></div>
+            <div id="map-info"></div>
+            <div id="intro-allegiance"></div>
+          </div>
+          <aside id="map-side">
+            <div id="intro-char" style="display:none;">
+              <canvas id="intro-char-cv" width="120" height="150"></canvas>
+              <div id="intro-char-info"></div>
+            </div>
+            <div id="map-tabs">
+              <button class="map-tab active" data-tab="market" data-i18n="g_tab_market"></button>
+              <button class="map-tab" data-tab="nft" data-i18n="g_tab_nft"></button>
+            </div>
+            <div id="intro-warbonds"><!-- 預測市場由 intro.js 注入 --></div>
+            <div id="intro-nftmkt" style="display:none;"><!-- NFT 市場 --></div>
+            <button id="intro-enter" disabled></button>
+            <button class="intro-btn intro-ghost" id="intro-back" data-i18n="back" style="margin-top:8px;"></button>
+          </aside>
+        </div>
       </div>
 
       <div id="intro-hint" data-i18n="hint"></div>
     </div>
   </div>
 
-  <div id="hud">
+  <div id="hud" style="display:none">
     <!-- Status bars -->
     <div id="bars-container">
       <div class="bar-row">
@@ -476,20 +677,20 @@
 
     <!-- Skill Tree Panel (K to open) -->
     <div id="skill-panel">
-      <h2>⚔ 戰士技能樹</h2>
-      <div id="sp-display">技能點：<span id="sp-count">40</span> / <span id="sp-max">40</span></div>
+      <h2 data-i18n="g_skilltree_title">⚔ 戰士技能樹</h2>
+      <div id="sp-display"><span data-i18n="g_sp_points">技能點：</span><span id="sp-count">40</span> / <span id="sp-max">40</span></div>
       <div id="weapon-tabs">
-        <button data-weapon="sword_shield">單手劍盾</button>
-        <button data-weapon="greatsword">雙手劍</button>
-        <button data-weapon="polearm">長槍</button>
+        <button data-weapon="sword_shield" data-i18n="g_w_sword">單手劍盾</button>
+        <button data-weapon="greatsword" data-i18n="g_w_greatsword">雙手劍</button>
+        <button data-weapon="polearm" data-i18n="g_w_polearm">長槍</button>
       </div>
-      <div class="sk-section-title">── 共通技能 ──</div>
+      <div class="sk-section-title" data-i18n="g_sec_common">── 共通技能 ──</div>
       <div id="skill-section-common"></div>
-      <div class="sk-section-title" id="weapon-section-title">── 武器技能 ──</div>
+      <div class="sk-section-title" id="weapon-section-title" data-i18n="g_sec_weapon">── 武器技能 ──</div>
       <div id="skill-section-weapon"></div>
-      <div class="sk-section-title">── 技能欄位（點格子取消裝備）──</div>
+      <div class="sk-section-title" data-i18n="g_sec_slots">── 技能欄位（點格子取消裝備）──</div>
       <div id="panel-slot-bar"></div>
-      <div id="panel-close-hint">按 K 關閉技能樹</div>
+      <div id="panel-close-hint" data-i18n="g_skilltree_close">按 K 關閉技能樹</div>
     </div>
 
     <!-- Dual Keep HP Bars (top center) -->
@@ -497,7 +698,7 @@
       display:flex; gap:12px; padding:6px 16px; align-items:flex-start;">
       <!-- 藍方主堡 -->
       <div style="text-align:center; min-width:160px;">
-        <div style="color:#66aaff; font-size:11px; text-shadow:1px 1px 2px #000; margin-bottom:2px;">🏰 藍方主堡</div>
+        <div data-i18n="g_keep_blue" style="color:#66aaff; font-size:11px; text-shadow:1px 1px 2px #000; margin-bottom:2px;">🏰 藍方主堡</div>
         <div id="keep-bar-1" style="background:#1a1a1a; border-radius:5px; border:1px solid #446; overflow:hidden; height:14px;">
           <div id="keep-fill-1" style="height:100%; width:100%;
             background:linear-gradient(90deg,#2244cc,#4488ff);
@@ -508,7 +709,7 @@
       <div style="color:#fff; font-size:20px; padding-top:6px; text-shadow:1px 1px 3px #000;">⚔</div>
       <!-- 紅方主堡 -->
       <div style="text-align:center; min-width:160px;">
-        <div style="color:#ff6644; font-size:11px; text-shadow:1px 1px 2px #000; margin-bottom:2px;">🏰 紅方主堡</div>
+        <div data-i18n="g_keep_red" style="color:#ff6644; font-size:11px; text-shadow:1px 1px 2px #000; margin-bottom:2px;">🏰 紅方主堡</div>
         <div id="keep-bar-2" style="background:#1a1a1a; border-radius:5px; border:1px solid #644; overflow:hidden; height:14px;">
           <div id="keep-fill-2" style="height:100%; width:100%;
             background:linear-gradient(90deg,#cc2200,#ff4422);
@@ -523,129 +724,143 @@
     <div id="buff-flash"></div>
 
     <!-- Debug hint -->
-    <div id="debug-hint">[ P ] 設定 ・ [ O ] 外觀 ・ [ B ] 預測市場 ・ [ Alt ] 滑鼠/視角</div>
+    <div id="debug-hint" data-i18n="g_debughint">[ P ] 設定 ・ [ O ] 外觀 ・ [ B ] 建造 ・ [ M ] 預測市場 ・ [ Alt ] 滑鼠/視角</div>
 
     <!-- Debug Panel (P to toggle) -->
     <div id="debug-panel">
-      <h3>⚙ 設定 / 測試面板</h3>
+      <h3 data-i18n="g_settings">⚙ 設定 / 測試面板</h3>
+      <button class="dbg-btn" id="dbg-lang" data-i18n="g_lang">語言：中 / EN</button>
       <div class="dbg-row">
-        <label>畫質</label>
+        <label data-i18n="g_quality">畫質</label>
         <div style="display:flex; gap:4px;">
-          <button class="dbg-btn q-btn" data-q="low"  style="width:auto; padding:4px 10px; margin:0;">低</button>
-          <button class="dbg-btn q-btn" data-q="mid"  style="width:auto; padding:4px 10px; margin:0;">中</button>
-          <button class="dbg-btn q-btn" data-q="high" style="width:auto; padding:4px 10px; margin:0;">高</button>
+          <button class="dbg-btn q-btn" data-q="low"  data-i18n="g_low" style="width:auto; padding:4px 10px; margin:0;">低</button>
+          <button class="dbg-btn q-btn" data-q="mid"  data-i18n="g_mid" style="width:auto; padding:4px 10px; margin:0;">中</button>
+          <button class="dbg-btn q-btn" data-q="high" data-i18n="g_high" style="width:auto; padding:4px 10px; margin:0;">高</button>
         </div>
       </div>
       <div class="dbg-row">
-        <label for="dbg-infinite-pw">無限 PW</label>
+        <label for="dbg-infinite-pw" data-i18n="g_infinite_pw">無限 PW</label>
         <input type="checkbox" id="dbg-infinite-pw">
       </div>
       <div class="dbg-row">
-        <label for="dbg-one-hit">一擊必殺</label>
+        <label for="dbg-one-hit" data-i18n="g_one_hit">一擊必殺</label>
         <input type="checkbox" id="dbg-one-hit">
       </div>
       <div class="dbg-row">
-        <label for="dbg-no-cd">技能無 CD</label>
+        <label for="dbg-no-cd" data-i18n="g_no_cd">技能無 CD</label>
         <input type="checkbox" id="dbg-no-cd">
       </div>
-      <button class="dbg-btn" id="dbg-unlock-skills">🔓 解鎖全技能 (測試)</button>
-      <button class="dbg-btn" id="dbg-reset-sp">重置技能點 (40pt)</button>
-      <button class="dbg-btn" id="dbg-full-hp">HP 回滿</button>
+      <button class="dbg-btn" id="dbg-unlock-skills" data-i18n="g_unlock_skills">🔓 解鎖全技能 (測試)</button>
+      <button class="dbg-btn" id="dbg-reset-sp" data-i18n="g_reset_sp">重置技能點 (40pt)</button>
+      <button class="dbg-btn" id="dbg-full-hp" data-i18n="g_full_hp">HP 回滿</button>
     </div>
 
-    <!-- 場內預測市場 HUD (B to toggle) -->
+    <!-- 場內預測市場 HUD (M to toggle) -->
     <div id="market-hud"><!-- 由 marketHud.js 注入 --></div>
 
     <!-- 角色外觀面板 (O to toggle) -->
     <div id="appearance-panel">
-      <h3>👤 角色外觀</h3>
+      <h3 data-i18n="g_ap_title">👤 角色外觀</h3>
       <canvas id="ap-preview" width="240" height="165"></canvas>
-      <div class="ap-note">外觀與技能完全獨立 — 技能組由武器決定（Tab 切換）</div>
-      <div class="ap-section">身形</div>
+      <div class="ap-note" data-i18n="g_ap_note">外觀與技能完全獨立 — 技能組由武器決定（Tab 切換）</div>
+      <div class="ap-section" data-i18n="g_ap_form">身形</div>
       <div class="ap-btnrow">
-        <button class="dbg-btn ap-model" data-m="knight">騎士</button>
-        <button class="dbg-btn ap-model" data-m="barbarian">蠻族</button>
-        <button class="dbg-btn ap-model" data-m="rogue">遊俠</button>
+        <button class="dbg-btn ap-model" data-m="knight" data-i18n="g_knight">騎士</button>
+        <button class="dbg-btn ap-model" data-m="barbarian" data-i18n="g_barbarian">蠻族</button>
+        <button class="dbg-btn ap-model" data-m="rogue" data-i18n="g_rogue">遊俠</button>
       </div>
-      <div class="ap-section">服裝染色（染裝不染膚）</div>
+      <div class="ap-section" data-i18n="g_ap_tint">服裝染色（染裝不染膚）</div>
       <div class="ap-tints">
-        <button class="ap-tint" data-t="null"    style="background:linear-gradient(135deg,#888 49%,#fff 51%);" title="原色"></button>
-        <button class="ap-tint" data-t="14711402" style="background:#e07a6a;" title="緋紅"></button>
-        <button class="ap-tint" data-t="7250656"  style="background:#6ea2e0;" title="湛藍"></button>
-        <button class="ap-tint" data-t="8700016"  style="background:#84c070;" title="森綠"></button>
-        <button class="ap-tint" data-t="11045592" style="background:#a88ad8;" title="紫晶"></button>
-        <button class="ap-tint" data-t="14598250" style="background:#dec06a;" title="琥珀"></button>
-        <button class="ap-tint" data-t="9342614"  style="background:#8e8e96;" title="玄灰"></button>
-        <button class="ap-tint" data-t="15921906" style="background:#f2f2f2;" title="雪白"></button>
+        <button class="ap-tint" data-t="null"    data-i18n-title="g_tint_none" style="background:linear-gradient(135deg,#888 49%,#fff 51%);" title="原色"></button>
+        <button class="ap-tint" data-t="14711402" data-i18n-title="g_tint_crimson" style="background:#e07a6a;" title="緋紅"></button>
+        <button class="ap-tint" data-t="7250656"  data-i18n-title="g_tint_azure" style="background:#6ea2e0;" title="湛藍"></button>
+        <button class="ap-tint" data-t="8700016"  data-i18n-title="g_tint_forest" style="background:#84c070;" title="森綠"></button>
+        <button class="ap-tint" data-t="11045592" data-i18n-title="g_tint_amethyst" style="background:#a88ad8;" title="紫晶"></button>
+        <button class="ap-tint" data-t="14598250" data-i18n-title="g_tint_amber" style="background:#dec06a;" title="琥珀"></button>
+        <button class="ap-tint" data-t="9342614"  data-i18n-title="g_tint_slate" style="background:#8e8e96;" title="玄灰"></button>
+        <button class="ap-tint" data-t="15921906" data-i18n-title="g_tint_snow" style="background:#f2f2f2;" title="雪白"></button>
       </div>
-      <div class="ap-section">頭部</div>
+      <div class="ap-section" data-i18n="g_ap_head">頭部</div>
       <div class="ap-btnrow">
-        <button class="dbg-btn ap-part" data-part="head" data-v="none">無</button>
-        <button class="dbg-btn ap-part" data-part="head" data-v="knight">騎士盔</button>
-        <button class="dbg-btn ap-part" data-part="head" data-v="barbarian">蠻帽</button>
-        <button class="dbg-btn ap-part" data-part="head" data-v="hood">兜帽</button>
+        <button class="dbg-btn ap-part" data-part="head" data-v="none" data-i18n="g_none">無</button>
+        <button class="dbg-btn ap-part" data-part="head" data-v="knight" data-i18n="g_helm_knight">騎士盔</button>
+        <button class="dbg-btn ap-part" data-part="head" data-v="barbarian" data-i18n="g_hat_barb">蠻帽</button>
+        <button class="dbg-btn ap-part" data-part="head" data-v="hood" data-i18n="g_hood">兜帽</button>
       </div>
-      <div class="ap-section">身體</div>
+      <div class="ap-section" data-i18n="g_ap_torso">身體</div>
       <div class="ap-btnrow">
-        <button class="dbg-btn ap-part" data-part="body" data-v="knight">騎士甲</button>
-        <button class="dbg-btn ap-part" data-part="body" data-v="barbarian">蠻族衣</button>
-        <button class="dbg-btn ap-part" data-part="body" data-v="rogue">遊俠裝</button>
+        <button class="dbg-btn ap-part" data-part="body" data-v="knight" data-i18n="g_armor_knight">騎士甲</button>
+        <button class="dbg-btn ap-part" data-part="body" data-v="barbarian" data-i18n="g_armor_barb">蠻族衣</button>
+        <button class="dbg-btn ap-part" data-part="body" data-v="rogue" data-i18n="g_armor_rogue">遊俠裝</button>
       </div>
-      <div class="ap-section">手部</div>
+      <div class="ap-section" data-i18n="g_ap_arms">手部</div>
       <div class="ap-btnrow">
-        <button class="dbg-btn ap-part" data-part="arms" data-v="knight">騎士臂甲</button>
-        <button class="dbg-btn ap-part" data-part="arms" data-v="barbarian">蠻族臂</button>
-        <button class="dbg-btn ap-part" data-part="arms" data-v="rogue">遊俠袖</button>
+        <button class="dbg-btn ap-part" data-part="arms" data-v="knight" data-i18n="g_arms_knight">騎士臂甲</button>
+        <button class="dbg-btn ap-part" data-part="arms" data-v="barbarian" data-i18n="g_arms_barb">蠻族臂</button>
+        <button class="dbg-btn ap-part" data-part="arms" data-v="rogue" data-i18n="g_arms_rogue">遊俠袖</button>
       </div>
-      <div class="ap-section">腳部</div>
+      <div class="ap-section" data-i18n="g_ap_legs">腳部</div>
       <div class="ap-btnrow">
-        <button class="dbg-btn ap-part" data-part="legs" data-v="knight">騎士腿甲</button>
-        <button class="dbg-btn ap-part" data-part="legs" data-v="barbarian">蠻族褲</button>
-        <button class="dbg-btn ap-part" data-part="legs" data-v="rogue">遊俠靴</button>
+        <button class="dbg-btn ap-part" data-part="legs" data-v="knight" data-i18n="g_legs_knight">騎士腿甲</button>
+        <button class="dbg-btn ap-part" data-part="legs" data-v="barbarian" data-i18n="g_legs_barb">蠻族褲</button>
+        <button class="dbg-btn ap-part" data-part="legs" data-v="rogue" data-i18n="g_legs_rogue">遊俠靴</button>
       </div>
-      <div class="ap-section">背部（披風）</div>
+      <div class="ap-section" data-i18n="g_ap_cape">背部（披風）</div>
       <div class="ap-btnrow">
-        <button class="dbg-btn ap-part" data-part="cape" data-v="none">無</button>
-        <button class="dbg-btn ap-part" data-part="cape" data-v="knight">騎士</button>
-        <button class="dbg-btn ap-part" data-part="cape" data-v="barbarian">蠻族</button>
-        <button class="dbg-btn ap-part" data-part="cape" data-v="rogue">遊俠</button>
+        <button class="dbg-btn ap-part" data-part="cape" data-v="none" data-i18n="g_none">無</button>
+        <button class="dbg-btn ap-part" data-part="cape" data-v="knight" data-i18n="g_knight">騎士</button>
+        <button class="dbg-btn ap-part" data-part="cape" data-v="barbarian" data-i18n="g_barbarian">蠻族</button>
+        <button class="dbg-btn ap-part" data-part="cape" data-v="rogue" data-i18n="g_rogue">遊俠</button>
       </div>
-      <div class="ap-section">雙手武器外觀</div>
+      <div class="ap-section" data-i18n="g_ap_gsskin">雙手武器外觀</div>
       <div class="ap-btnrow">
-        <button class="dbg-btn ap-gs" data-g="sword">大劍</button>
-        <button class="dbg-btn ap-gs" data-g="axe">戰斧</button>
+        <button class="dbg-btn ap-gs" data-g="sword" data-i18n="g_gs_sword">大劍</button>
+        <button class="dbg-btn ap-gs" data-g="axe" data-i18n="g_gs_axe">戰斧</button>
       </div>
-      <button class="dbg-btn" id="ap-close">關閉（O）</button>
+      <button class="dbg-btn" id="ap-close" data-i18n="g_close_o">關閉（O）</button>
     </div>
 
     <!-- Game Over Screen -->
-    <div id="gameover-screen" style="display:none; position:absolute; inset:0;
-      background:rgba(0,0,0,0.88); flex-direction:column;
-      align-items:center; justify-content:center; pointer-events:none;">
-      <div id="gameover-title" style="font-size:68px; font-weight:bold;
+    <div id="gameover-screen" style="display:none; position:absolute; inset:0; z-index:50;
+      background:rgba(0,0,0,0.9); flex-direction:column;
+      align-items:center; justify-content:center; pointer-events:auto;">
+      <div id="gameover-title" data-i18n="g_go_lose" style="font-size:58px; font-weight:bold;
         text-shadow:0 0 30px currentColor, 2px 2px 10px #000; color:#ff2222;">💀 主堡陷落</div>
-      <div id="gameover-sub" style="color:#ffaa44; font-size:24px; margin-top:16px;
+      <div id="gameover-sub" data-i18n="g_go_lose_sub" style="color:#ffaa44; font-size:20px; margin-top:8px;
         text-shadow:1px 1px 4px #000;">敵軍已佔領您的城堡</div>
-      <div style="color:#aaa; font-size:16px; margin-top:24px;
-        text-shadow:1px 1px 2px #000;">按 F5 重新開始</div>
+
+      <!-- 戰後結算面板：玩家 confirm 才簽交易 -->
+      <div id="settle-panel" style="display:none; flex-direction:column; gap:11px; margin-top:24px;
+        min-width:340px; max-width:90vw; padding:18px 22px; border-radius:14px;
+        background:linear-gradient(180deg,rgba(26,34,54,.97),rgba(13,19,33,.97));
+        border:1px solid rgba(120,150,210,.35); box-shadow:0 14px 50px rgba(0,0,0,.6);">
+        <div data-i18n="g_settle_title" style="font:700 15px 'Cinzel',serif; color:#c9b27a; text-align:center; letter-spacing:1px;">⚜ 戰後結算</div>
+        <div id="settle-market" class="settle-block"></div>
+        <div id="settle-xp" class="settle-block"></div>
+        <div style="display:flex; gap:10px; justify-content:center; margin-top:4px; flex-wrap:wrap;">
+          <button id="settle-claim"   class="settle-btn settle-btn-gold" style="display:none;" data-i18n="g_claim_payout">領取派彩</button>
+          <button id="settle-levelup" class="settle-btn settle-btn-blue" style="display:none;" data-i18n="g_confirm_levelup">確認升級</button>
+          <button id="settle-restart" class="settle-btn" data-i18n="g_settle_restart">🔄 重新開始</button>
+        </div>
+      </div>
     </div>
 
     <!-- Death Screen -->
     <div id="death-screen" style="display:none; position:absolute; inset:0;
       background:rgba(0,0,0,0.78); flex-direction:column;
       align-items:center; justify-content:center; pointer-events:none;">
-      <div style="color:#ff4444; font-size:54px; font-weight:bold;
+      <div data-i18n="g_death" style="color:#ff4444; font-size:54px; font-weight:bold;
         text-shadow:0 0 20px #ff0000, 2px 2px 8px #000;">你陣亡了</div>
       <div id="respawn-cd" style="color:#cccccc; font-size:22px;
         margin-top:14px; text-shadow:1px 1px 4px #000;"></div>
     </div>
-    <div id="status">連線中...</div>
+    <div id="status" data-i18n="g_connecting">連線中...</div>
     <div id="team-display" style="position:absolute; top:16px; left:50%; transform:translateX(-50%);
       color:#fff; font-size:13px; text-shadow:1px 1px 3px #000; margin-top:52px;"></div>
-    <div id="kill-display">擊殺: <span id="kill-count">0</span></div>
+    <div id="kill-display"><span data-i18n="g_kills">擊殺:</span> <span id="kill-count">0</span></div>
     <div id="building-ui">
-      💎 <span id="crystal-count">0</span> / 50 水晶<br>
-      箭塔剩餘: <span id="tower-count">3</span>
+      💎 <span id="crystal-count">0</span> / 50 <span data-i18n="g_crystals">水晶</span><br>
+      <span data-i18n="g_towers_left">箭塔剩餘:</span> <span id="tower-count">3</span>
     </div>
 
     <!-- Build Menu -->
@@ -654,10 +869,10 @@
       border:1px solid #556; border-radius:12px; padding:16px 28px;
       flex-direction:column; align-items:center; gap:10px;
       color:#fff; text-shadow:1px 1px 3px #000; pointer-events:none; min-width:260px;">
-      <div style="font-size:16px; color:#ffe066; font-weight:bold; letter-spacing:2px;">⚒ 建造選單</div>
-      <div style="font-size:14px; width:100%; text-align:left;">[1] 箭塔 &mdash; <span style="color:#44aaff;">18 💎</span></div>
-      <div style="font-size:14px; width:100%; text-align:left;">[2] 方尖塔 Obelisk &mdash; <span style="color:#44aaff;">12 💎</span> <span style="font-size:11px; color:#aaa;">（擴張影響範圍）</span></div>
-      <div style="font-size:12px; color:#888; margin-top:4px;">[B / Esc] 取消</div>
+      <div style="font-size:16px; color:#ffe066; font-weight:bold; letter-spacing:2px;" data-i18n="g_build_title">⚒ 建造選單</div>
+      <div style="font-size:14px; width:100%; text-align:left;"><span data-i18n="g_build_tower">[1] 箭塔</span> &mdash; <span style="color:#44aaff;">18 💎</span></div>
+      <div style="font-size:14px; width:100%; text-align:left;"><span data-i18n="g_build_obelisk">[2] 方尖塔 Obelisk</span> &mdash; <span style="color:#44aaff;">12 💎</span> <span style="font-size:11px; color:#aaa;" data-i18n="g_build_obelisk_note">（擴張影響範圍）</span></div>
+      <div style="font-size:12px; color:#888; margin-top:4px;" data-i18n="g_cancel_be">[B / Esc] 取消</div>
     </div>
 
     <!-- Summon Menu -->
@@ -666,11 +881,11 @@
       border:1px solid #779; border-radius:12px; padding:16px 28px;
       flex-direction:column; align-items:center; gap:10px;
       color:#fff; text-shadow:1px 1px 3px #000; pointer-events:none; min-width:310px;">
-      <div style="font-size:16px; color:#cc88ff; font-weight:bold; letter-spacing:2px;">⚗ 召喚選單</div>
-      <div style="font-size:13px; width:100%; text-align:left;">[1] 騎士 Knight &mdash; <span style="color:#44aaff;">30 💎</span> <span style="font-size:11px;color:#aaa;">HP 300 · 重裝近戰</span></div>
-      <div style="font-size:13px; width:100%; text-align:left;">[2] 巨人 Giant &mdash; <span style="color:#44aaff;">50 💎</span> <span style="font-size:11px;color:#aaa;">HP 600 · 超重衝撞</span></div>
-      <div style="font-size:13px; width:100%; text-align:left;">[3] 幽魂 Wraith &mdash; <span style="color:#44aaff;">40 💎</span> <span style="font-size:11px;color:#aaa;">HP 180 · 高速穿刺</span></div>
-      <div style="font-size:12px; color:#888; margin-top:4px;">[G / Esc] 取消</div>
+      <div style="font-size:16px; color:#cc88ff; font-weight:bold; letter-spacing:2px;" data-i18n="g_summon_title">⚗ 召喚選單</div>
+      <div style="font-size:13px; width:100%; text-align:left;"><span data-i18n="g_summon_knight">[1] 騎士 Knight</span> &mdash; <span style="color:#44aaff;">30 💎</span> <span style="font-size:11px;color:#aaa;" data-i18n="g_summon_knight_note">HP 300 · 重裝近戰</span></div>
+      <div style="font-size:13px; width:100%; text-align:left;"><span data-i18n="g_summon_giant">[2] 巨人 Giant</span> &mdash; <span style="color:#44aaff;">50 💎</span> <span style="font-size:11px;color:#aaa;" data-i18n="g_summon_giant_note">HP 600 · 超重衝撞</span></div>
+      <div style="font-size:13px; width:100%; text-align:left;"><span data-i18n="g_summon_wraith">[3] 幽魂 Wraith</span> &mdash; <span style="color:#44aaff;">40 💎</span> <span style="font-size:11px;color:#aaa;" data-i18n="g_summon_wraith_note">HP 180 · 高速穿刺</span></div>
+      <div style="font-size:12px; color:#888; margin-top:4px;" data-i18n="g_cancel_ge">[G / Esc] 取消</div>
     </div>
 
     <!-- Summon HP bar (shown when summoned) -->
@@ -687,11 +902,11 @@
     </div>
 
     <div id="round-timer">
-      <div id="round-wave-label">第 - 波</div>
+      <div id="round-wave-label" data-i18n="g_wave_dash">第 - 波</div>
       <div id="round-countdown">--:--</div>
-      <div id="round-phase">等待連線</div>
+      <div id="round-phase" data-i18n="g_waiting_conn">等待連線</div>
     </div>
-    <div id="hint">
+    <div id="hint" data-i18n-html="g_controls">
       WASD 移動（面向準心）· Shift 衝刺<br>
       Space 跳躍 · Q/E 側閃 · C 採礦<br>
       LMB 橫掃 · 滾輪↑縱劈 · 滾輪↓突刺<br>

@@ -7,6 +7,8 @@
 //   active   命中判定窗：多段技能（hits>1）在此期間平均分段命中
 //   recovery 後搖：仍然鎖定，結束才能下一招（不可緩衝）
 
+import { t, getLang } from '../ui/i18n.js';
+
 export const SKILL_DEFS = {
 
   // ══════════════════════════════════════════════════════
@@ -246,3 +248,31 @@ export const WEAPON_LABELS = {
   greatsword:   '雙手劍',
   polearm:      '長槍',
 };
+
+// 英文技能說明（中文用各 def.desc）
+const SKILL_DESC_EN = {
+  embolden: 'Super-armor: immune to flinch (not stun / knockback / DoT)',
+  reinforce_guard: 'Raises defense, lowers attack; long duration',
+  tackle: 'Dash forward, hitting enemies along the path, knockback',
+  shield_bash: 'Short windup, 2m 90° cone, stuns target (warrior signature)',
+  smash: '2m 60° cone, short windup, flinch',
+  smash_2: 'Two-hit combo (2nd is sidestep-cancelable), each flinches',
+  force_impact: 'Linear projectile forward, strong knockback on hit',
+  sonic_boom: '2m-wide linear wave, sweeps formations, flinch',
+  behemoths_tail: '4-hit 180° horizontal sweep, each flinches, combos into Heavy Smash',
+  heavy_smash: "High-damage finisher after Behemoth's Tail",
+  crumble_storm: 'Self 360° 4m blast, strong knockback (long recovery)',
+  cleave: '3m 120° cone, heavy damage, flinch',
+  slam_attack: 'Landing impact in a 3m circle, knockback',
+  lance_sweep: '3.5m 120° cone sweep, flinch',
+  lance_charge: 'Linear thrust, range scales with level, flinch',
+  big_step: 'Leap then landing impact, area knockback',
+  whirlwind_lance: '360° 4m three-hit spin, each flinches',
+};
+
+const WEAPON_KEY = { sword_shield: 'g_w_sword', greatsword: 'g_w_greatsword', polearm: 'g_w_polearm' };
+
+/** 依目前語言取技能名 / 說明 / 武器標籤 */
+export function skillName(def) { return getLang() === 'zh' ? def.nameZh : (def.nameEn || def.nameZh); }
+export function skillDesc(def) { return getLang() === 'zh' ? def.desc : (SKILL_DESC_EN[def.id] || def.desc); }
+export function weaponLabel(weapon) { return t(WEAPON_KEY[weapon] || weapon); }

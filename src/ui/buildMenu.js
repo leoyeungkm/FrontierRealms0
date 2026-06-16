@@ -4,6 +4,7 @@ import { createTower } from '../entities/tower.js';
 import { createObelisk } from '../world/soi.js';
 import { activateSummon } from '../entities/summonSystem.js';
 import { showAnnounce, updateCrystalHUD } from '../ui/hud.js';
+import { t } from '../ui/i18n.js';
 
 // ─── State ───────────────────────────────────────────────────
 export const menuState = { buildOpen: false, summonOpen: false };
@@ -39,21 +40,23 @@ export function selectAndPlace(type) {
 }
 
 export function placeTower() {
-  if (_towersLeftRef.value <= 0) { showAnnounce('箭塔已達上限！'); return; }
-  if (_crystalState.count < TOWER_COST) { showAnnounce(`需要 ${TOWER_COST} 💎 水晶！（現有 ${_crystalState.count}）`); return; }
+  if (_towersLeftRef.value <= 0) { showAnnounce(t('g_tower_max')); return; }
+  if (_crystalState.count < TOWER_COST) { showAnnounce(t('g_need_crystal', { cost: TOWER_COST, have: _crystalState.count })); return; }
   _crystalState.count -= TOWER_COST;
   updateCrystalHUD(_crystalState.count);
   const yaw = _getPlayerYaw();
   const fwd = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));   // 角色面向（修正：原本反向 → 建在背後）
   const pos = _playerPos.clone().addScaledVector(fwd, 5);
-  createTower(pos.x, pos.z);
+  const room = _getRoom();
+  if (room) room.send('build', ['tower', pos.x, pos.z]);   // 經 server 廣播給所有人（含自己），對面也看得到
+  else createTower(pos.x, pos.z);                           // 離線 fallback
   _towersLeftRef.value--;
   _updateTowerCount(_towersLeftRef.value);
 }
 
 export function placeObelisk() {
   if (_crystalState.count < OBELISK_COST) {
-    showAnnounce(`需要 ${OBELISK_COST} 💎 水晶！（現有 ${_crystalState.count}）`);
+    showAnnounce(t('g_need_crystal', { cost: OBELISK_COST, have: _crystalState.count }));
     return;
   }
   _crystalState.count -= OBELISK_COST;
@@ -61,7 +64,9 @@ export function placeObelisk() {
   const yaw = _getPlayerYaw();
   const fwd = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));   // 角色面向（修正：原本反向 → 建在背後）
   const pos = _playerPos.clone().addScaledVector(fwd, 5);
-  createObelisk(pos.x, pos.z);
+  const room = _getRoom();
+  if (room) room.send('build', ['obelisk', pos.x, pos.z]);
+  else createObelisk(pos.x, pos.z);
 }
 
 // ─── Build Ghost Preview ─────────────────────────────────────
@@ -115,7 +120,7 @@ export function toggleSummonMenu(summonActive) {
 export function selectSummon(type) {
   const def = SUMMON_DEFS[type];
   if (!def) return;
-  if (_crystalState.count < def.cost) { showAnnounce(`需要 ${def.cost} 💎 召喚 ${def.name}！`); return; }
+  if (_crystalState.count < def.cost) { showAnnounce(t('g_need_summon', { cost: def.cost, name: def.name })); return; }
   _crystalState.count -= def.cost;
   updateCrystalHUD(_crystalState.count);
   menuState.summonOpen = false;

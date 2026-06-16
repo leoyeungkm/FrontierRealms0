@@ -8,6 +8,7 @@
  *
  * See: https://docs.colyseus.io/server/api/#constructor-options
  */
+import "dotenv/config";   // 先載入 .env（oracle 結算用 FR0_ADMIN_SECRET 等），務必在其他 import 之前；Colyseus Cloud 無 .env 會自動略過
 import { listen } from "@colyseus/tools";
 
 // Import Colyseus config

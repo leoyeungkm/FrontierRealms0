@@ -26,12 +26,12 @@ import { initSfx, sfxSwing, sfxHit, sfxDash, sfxCast, sfxFreeze, sfxMist } from 
 import { initDmgNumbers, worldToScreen, showDmgNum, updateDmgNumbers } from './effects/dmgNumbers.js';
 import { initSummon, buildKnightMesh, buildGiantMesh, buildWraithMesh, updateSummons, summonAttackAnim } from './entities/summon.js';
 import { initEnemy, initEnemyPhysics, enemies, spawnEnemy, updateEnemyHp, flashEnemyHit, markEnemyHit, removeEnemy, killEnemy, clearEnemies, updateEnemies, updateDyingEnemies } from './entities/enemy.js';
-import { initRemotePlayer, initRemotePlayerPhysics, remotePlayers, spawnRemotePlayer, removeRemotePlayer, updateRemotes, setRemoteAppearance } from './entities/remotePlayer.js';
+import { initRemotePlayer, initRemotePlayerPhysics, remotePlayers, spawnRemotePlayer, removeRemotePlayer, updateRemotes, setRemoteAppearance, setRemoteName } from './entities/remotePlayer.js';
 import { buildVoxelMap, createTerrainColliders, getTerrainHeight, updateWorldAnim, setGrassCount } from './world/voxelMap.js';
 import { bindQuality, applyQuality, usePostFX, getQuality, QUALITY_PRESETS } from './core/quality.js';
 import { buildSky, updateEnvironment, SKY_HORIZON } from './world/environment.js';
-import { initSoI, createSoICircle, obelisks, updateObelisks } from './world/soi.js';
-import { initTower, towers, updateTowers } from './entities/tower.js';
+import { initSoI, createSoICircle, createObelisk, obelisks, updateObelisks } from './world/soi.js';
+import { initTower, towers, updateTowers, createTower } from './entities/tower.js';
 import { initCrystal, setCrystalPlayerRefs, isMining, crystalState, crystalNodes, spawnCrystalNode, updateMining } from './world/crystal.js';
 import {
   initBuildMenu, menuState, updateBuildGhost, clearBuildGhost,
@@ -50,7 +50,8 @@ import {
   updateSummonHUD, updateKeepBar, updateRoundTimer,
   flashDamage, flashKeepBar, showAnnounce, setStatus, showGameOver,
 } from './ui/hud.js';
-import { SKILL_DEFS, WEAPON_SKILL_LISTS } from './data/skillDefs.js';
+import { SKILL_DEFS, WEAPON_SKILL_LISTS, weaponLabel } from './data/skillDefs.js';
+import { t, toggleLang, onLangChange } from './ui/i18n.js';
 import { createVoxelRig } from './entities/voxelCharacter.js';
 import { preloadWeapon } from './entities/riggedCharacter.js';
 import { appearance, buildAppearanceRig, initAppearanceUI, initAppearancePreview, toggleAppearancePanel, appearanceToNet, appearanceFromNet } from './ui/appearance.js';
@@ -58,12 +59,13 @@ import { initSuiPanel } from './ui/suiPanel.js';
 import { initIntro } from './ui/intro.js';
 import { initMarketHud, toggleMarketHud } from './ui/marketHud.js';
 import { signLogin, suiState } from './sui/wallet.js';
-import { setActiveMarket, getMarket, getMyShares, redeem } from './sui/market.js';
+import { setActiveMarket, getMarket, getMyShares, redeem, toSui } from './sui/market.js';
 import {
   treeState, getSlotSkill, learnSkill, assignToSlot, setWeapon,
-  updateSkillCDs, startCD, getCDTimer,
+  updateSkillCDs, startCD, getCDTimer, autoFillSkills, setSkillBudget,
   initSkillPanel, toggleSkillPanel, isSkillPanelOpen, refreshSkillPanel,
 } from './ui/skillTree.js';
+import { addLocalXp, skillPointsForLevel, loadCharacter, getMyCharacter, applyXp, setPendingXp, clearPendingXp, addPendingRedeem, removePendingRedeem } from './sui/character.js';
 
 // ─── Renderer ────────────────────────────────────────────────
 const canvas   = document.getElementById('canvas');
@@ -141,6 +143,10 @@ const keys  = {};
 const mouse = { dx: 0, dy: 0, locked: false, leftClick: false, leftDown: false, freeLook: false };
 
 window.addEventListener('keydown', e => {
+  // 開場/打字時（角色名稱等輸入框）不把按鍵傳進遊戲；未進場也不吃輸入
+  const _t = e.target;
+  if (_t && (_t.tagName === 'INPUT' || _t.tagName === 'TEXTAREA' || _t.isContentEditable)) return;
+  if (!_enteredGame) return;
   keys[e.code] = true;
   // 側閃（FEZ §4：Q=左 E=右，按一下觸發一次）
   if ((e.code === 'KeyQ' || e.code === 'KeyE') && !e.repeat) _sidestepReq = e.code === 'KeyE' ? 1 : -1;
@@ -176,8 +182,9 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyP') toggleDebugPanel();
   // 角色外觀面板（不影響技能/武器玩法）
   if (e.code === 'KeyO') toggleAppearancePanel();
-  // 場內預測市場 HUD（進場後）：開啟時放開鼠標可點交易，關閉復原視角
-  if (e.code === 'KeyB' && _enteredGame) {
+  // 場內預測市場 HUD（進場後，M=Market；B 已給建造選單，避免衝突）：
+  // 開啟時放開鼠標可點交易，關閉復原視角
+  if (e.code === 'KeyM' && _enteredGame) {
     if (toggleMarketHud()) document.exitPointerLock(); else canvas.requestPointerLock();
   }
   // FEZ 原版操作：Alt 切換「滑鼠游標模式（點 UI）↔ 視角控制」
@@ -190,14 +197,17 @@ window.addEventListener('keydown', e => {
   if (e.code === 'Tab' && !isSkillPanelOpen()) {
     e.preventDefault();
     const order = ['sword_shield', 'greatsword', 'polearm'];
-    const labels = { sword_shield: '單手劍盾', greatsword: '雙手劍', polearm: '長槍' };
     const next = order[(order.indexOf(treeState.weapon) + 1) % order.length];
     setWeapon(next);
-    unlockAllSkills();   // 換武器時重填槽位
-    showAnnounce(`裝備：${labels[next]}`);
+    autoFillSkills();   // 換武器：在角色等級預算內重填技能
+    showAnnounce(t('g_equipped', { name: weaponLabel(next) }));
   }
 });
-window.addEventListener('keyup',   e => { keys[e.code] = false; });
+window.addEventListener('keyup',   e => {
+  const _t = e.target;
+  if (_t && (_t.tagName === 'INPUT' || _t.tagName === 'TEXTAREA' || _t.isContentEditable)) return;
+  keys[e.code] = false;
+});
 canvas.addEventListener('click', () => { canvas.requestPointerLock(); initSfx(); });
 document.addEventListener('pointerlockchange', () => { mouse.locked = document.pointerLockElement === canvas; });
 document.addEventListener('mousemove', e => {
@@ -545,7 +555,7 @@ const SWING_MAP = {
 };
 
 // 換武器時更新 rig 武器 + HUD
-const _weaponLabels = { sword_shield: '⚔ 單手劍盾', greatsword: '🗡 雙手劍', polearm: '🔱 長槍' };
+const _weaponIcons = { sword_shield: '⚔', greatsword: '🗡', polearm: '🔱' };
 function updateWeaponMesh(weapon) {
   if (_rv) {
     _attachRiggedWeapons(weapon);
@@ -555,7 +565,7 @@ function updateWeaponMesh(weapon) {
   } else return;
   playerWeaponGroup = null; // 武器現在由 rig 管理
   const el = document.getElementById('weapon-display');
-  if (el) el.innerHTML = `${_weaponLabels[weapon] || weapon}　<span style="color:#aaa;font-size:10px;">[ Tab 換武器 ]</span>`;
+  if (el) el.innerHTML = `${(_weaponIcons[weapon] || '') + ' ' + weaponLabel(weapon)}　<span style="color:#aaa;font-size:10px;">${t('g_tab_weapon')}</span>`;
 }
 
 function _updateHandPose(weapon) {
@@ -1115,7 +1125,12 @@ function initDebugPanel() {
   const btnHp  = document.getElementById('dbg-full-hp');
   if (!chkPw) return;
   // 解鎖全技能：所有技能 LV3，自動填入槽位 1-9
-  btnUnlock?.addEventListener('click', () => { unlockAllSkills(); showAnnounce('全技能解鎖！LV3'); });
+  btnUnlock?.addEventListener('click', () => { unlockAllSkills(); showAnnounce(t('g_unlock_done')); });
+  document.getElementById('dbg-lang')?.addEventListener('click', toggleLang);
+  onLangChange(() => {
+    const el = document.getElementById('weapon-display');
+    if (el) el.innerHTML = `${(_weaponIcons[treeState.weapon] || '') + ' ' + weaponLabel(treeState.weapon)}　<span style="color:#aaa;font-size:10px;">${t('g_tab_weapon')}</span>`;
+  });
   chkPw.addEventListener('change',  () => { debug.infinitePw = chkPw.checked; if (debug.infinitePw) { pw = maxPw; updatePwBar(pw, maxPw); } });
   chkHit.addEventListener('change', () => { debug.oneHit     = chkHit.checked; });
   chkCd.addEventListener('change',  () => { debug.noCD       = chkCd.checked; if (debug.noCD) for (const k in treeState.cdTimers) treeState.cdTimers[k] = 0; });
@@ -1127,7 +1142,7 @@ function initDebugPanel() {
   qBtns.forEach(b => b.addEventListener('click', () => {
     applyQuality(b.dataset.q);
     syncQBtns();
-    showAnnounce(`畫質：${QUALITY_PRESETS[b.dataset.q].label}`);
+    showAnnounce(t('g_quality_set', { q: t('g_' + b.dataset.q) }));
   }));
   syncQBtns();
 }
@@ -1308,20 +1323,19 @@ function useSkillSlot(slotIdx) {
 
   // 衝刺中不能放技能（FEZ §3.3）
   if ((keys['ShiftLeft'] || keys['ShiftRight']) && _isMoveKeyHeld()) {
-    showAnnounce('衝刺中無法使用技能');
+    showAnnounce(t('g_dash_no_skill'));
     return;
   }
 
   // 武器配對檢查
   if (sk.def.weapon !== 'common' && sk.def.weapon !== treeState.weapon) {
-    const labels = { sword_shield: '單手劍盾', greatsword: '雙手劍', polearm: '長槍' };
-    showAnnounce(`需要裝備【${labels[sk.def.weapon]}】才能使用此技能`);
+    showAnnounce(t('g_need_weapon', { weapon: weaponLabel(sk.def.weapon) }));
     return;
   }
 
   const cd = getCDTimer(sk.id);
   if (!debug.noCD && cd > 0) return;
-  if (!debug.infinitePw && pw < sk.stats.pw) { showAnnounce(`PW 不足！（需要 ${sk.stats.pw}）`); return; }
+  if (!debug.infinitePw && pw < sk.stats.pw) { showAnnounce(t('g_pw_low', { n: sk.stats.pw })); return; }
 
   if (!debug.infinitePw) { pw -= sk.stats.pw; updatePwBar(pw, maxPw); }
   if (!debug.noCD) startCD(sk.id);
@@ -1833,14 +1847,14 @@ function execEmbolden(stats) {
   setBodyEmissive(0xffaa00, 0.5);
   document.getElementById('buff-flash').style.opacity = '1';
   setTimeout(() => { document.getElementById('buff-flash').style.opacity = '0'; }, 400);
-  showAnnounce(`✨ Embolden！免疫硬直 ${stats.duration/1000}s`);
+  showAnnounce(t('g_embolden', { s: stats.duration / 1000 }));
 }
 
 // ─── Reinforce Guard ─────────────────────────────────────────
 function execReinforceGuard(stats) {
   reinforced = true;
   reinforceTimer = stats.duration / 1000;
-  showAnnounce(`🛡 強化防禦！防禦+${stats.defBonus} 攻擊×${stats.atkMul} 持續 ${stats.duration/1000}s`);
+  showAnnounce(t('g_reinforce', { def: stats.defBonus, atk: stats.atkMul, s: stats.duration / 1000 }));
 }
 
 // ─── Tackle / Lance Charge（突進，dur = active 判定時長）─────
@@ -2139,14 +2153,164 @@ function launchCorpse(group, dirX, dirZ, power = 7) {
 }
 
 // ─── Network ─────────────────────────────────────────────────
+// 取得經驗（純本地角色即時升級；鏈上角色由 server 結算 → addLocalXp 回 null）
+function _gainXp(amount) {
+  const r = addLocalXp(amount);
+  if (!r?.leveledUp) return;
+  treeState.maxPoints = skillPointsForLevel(r.level);
+  const spent = Object.values(treeState.learned).reduce((s, lv) => s + lv * (lv + 1) / 2, 0);
+  treeState.points = Math.max(0, treeState.maxPoints - spent);   // 只新增升級獲得的點數，不重置既有配點
+  refreshSkillPanel();
+  showAnnounce(t('g_levelup', { n: r.level }));
+}
+
+// 本地玩家頭上的角色名牌（顯示角色名 + 等級；名稱即鏈上 NFT 的 name）
+let _nameLabel = null;
+const _escName = s => String(s || 'Warrior').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+function _updateNameLabel() {
+  if (!_enteredGame || !playerGroup || isDead || gameOver) { if (_nameLabel) _nameLabel.style.display = 'none'; return; }
+  const ch = loadCharacter();
+  if (!ch) { if (_nameLabel) _nameLabel.style.display = 'none'; return; }
+  if (!_nameLabel) {
+    _nameLabel = document.createElement('div');
+    _nameLabel.style.cssText = 'position:absolute;pointer-events:none;text-align:center;transform:translateX(-50%);z-index:6;';
+    document.getElementById('hud')?.appendChild(_nameLabel);
+  }
+  const key = (ch.name || '') + '|' + (ch.level || 1);
+  if (_nameLabel._key !== key) {
+    _nameLabel._key = key;
+    _nameLabel.innerHTML = `<div style="color:#ffe08a;font:700 12px 'Oswald',sans-serif;text-shadow:0 1px 3px #000,0 0 6px rgba(0,0,0,.7);white-space:nowrap;">${_escName(ch.name)} <span style="color:#cfe3ff;font-size:9px;opacity:.85;">Lv${ch.level || 1}</span></div>`;
+  }
+  const head = playerPos.clone(); head.y += 2.2;
+  const sp = worldToScreen(head);
+  if (sp) { _nameLabel.style.left = sp.x + 'px'; _nameLabel.style.top = sp.y + 'px'; _nameLabel.style.display = 'block'; }
+  else _nameLabel.style.display = 'none';
+}
+
+function _showKicked() {
+  if (document.getElementById('kicked-overlay')) return;
+  const d = document.createElement('div');
+  d.id = 'kicked-overlay';
+  d.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:rgba(8,12,20,.94);color:#fff;font-family:Oswald,sans-serif;text-align:center;padding:24px;';
+  d.innerHTML = `<div style="font:700 24px Cinzel,serif;color:#ffcf6b;">${t('g_kicked_title')}</div><div style="max-width:440px;line-height:1.6;color:#cfe0ff;">${t('g_kicked_multilogin')}</div>`;
+  const btn = document.createElement('button');
+  btn.textContent = t('g_reload');
+  btn.style.cssText = 'padding:11px 30px;font:700 14px Oswald,sans-serif;letter-spacing:1px;cursor:pointer;border:none;border-radius:8px;color:#07101f;background:linear-gradient(180deg,#cfe0ff,#6f86d0);';
+  btn.onclick = () => location.reload();
+  d.appendChild(btn);
+  document.body.appendChild(d);
+}
+
+// ── 戰後結算面板（玩家 confirm 才簽交易，取代自動彈錢包）──
+let _settle = { mktId: null, winner: -1, xp: null, claimed: false, leveled: false, busy: false };
+
+function _showSettlement(win) {
+  showGameOver(!win);                                  // 設標題（勝/敗）+ 顯示畫面
+  const panel = document.getElementById('settle-panel');
+  if (panel) panel.style.display = 'flex';
+  const r = document.getElementById('settle-restart'); if (r) r.onclick = () => { try { localStorage.setItem('fr0_return_map', '1'); } catch { /* noop */ } location.reload(); };   // 回大廳（世界地圖）
+  const c = document.getElementById('settle-claim');   if (c) c.onclick = _doClaim;
+  const l = document.getElementById('settle-levelup'); if (l) l.onclick = _doLevelUp;
+  _renderSettleMarket();
+  _renderSettleXp();
+}
+
+async function _renderSettleMarket() {
+  const el = document.getElementById('settle-market');
+  const btn = document.getElementById('settle-claim');
+  if (!el) return;
+  if (_settle.winner < 0) { el.innerHTML = `⏳ ${t('g_settle_waiting')}`; if (btn) btn.style.display = 'none'; return; }
+  const winName = _settle.winner === 0 ? 'Minas United' : 'Calaadia';
+  if (!suiState.connected) { el.innerHTML = `🏳️ ${t('g_war_settled', { name: winName })}<br><span style="opacity:.7">${t('g_no_wallet_settle')}</span>`; if (btn) btn.style.display = 'none'; return; }
+  if (_settle.claimed)     { el.innerHTML = `🏆 ${t('g_war_settled', { name: winName })}<br><span style="opacity:.8">${t('g_payout_done')}</span>`; if (btn) btn.style.display = 'none'; return; }
+  el.innerHTML = `🏳️ ${t('g_war_settled', { name: winName })} · <span style="opacity:.7">${t('g_checking_shares')}</span>`;
+  let mine = { a: 0, b: 0 };
+  try { const mkt = await getMarket(_settle.mktId); mine = await getMyShares(mkt); } catch { /* noop */ }
+  const myWin = _settle.winner === 0 ? mine.a : mine.b;
+  if (myWin > 0) {
+    addPendingRedeem(_settle.mktId);   // 存起來：錯過結算面板也能在世界地圖角色卡補領
+    el.innerHTML = `🏆 ${t('g_war_settled', { name: winName })}<br>${t('g_you_won_shares', { n: toSui(myWin).toFixed(3) })}`;
+    if (btn) btn.style.display = '';
+  } else {
+    el.innerHTML = `🏳️ ${t('g_war_settled', { name: winName })}<br><span style="opacity:.7">${t('g_no_payout')}</span>`;
+    if (btn) btn.style.display = 'none';
+  }
+}
+
+function _renderSettleXp() {
+  const el = document.getElementById('settle-xp');
+  const btn = document.getElementById('settle-levelup');
+  if (!el) return;
+  if (!_settle.xp) { el.innerHTML = `⏳ ${t('g_settle_waiting')}`; if (btn) btn.style.display = 'none'; return; }
+  if (_settle.leveled) { el.innerHTML = `✨ ${t('g_xp_applied', { n: _settle.xp.amount })}`; if (btn) btn.style.display = 'none'; return; }
+  if (!suiState.connected) { el.innerHTML = `✨ ${t('g_xp_earned', { n: _settle.xp.amount })}<br><span style="opacity:.7">${t('g_no_wallet_settle')}</span>`; if (btn) btn.style.display = 'none'; return; }
+  el.innerHTML = `✨ ${t('g_xp_earned', { n: _settle.xp.amount })}`;
+  if (btn) btn.style.display = '';
+}
+
+async function _doClaim() {
+  if (_settle.busy || !_settle.mktId) return;
+  _settle.busy = true;
+  const btn = document.getElementById('settle-claim');
+  if (btn) { btn.disabled = true; btn.textContent = t('g_claiming'); }
+  try { await redeem(_settle.mktId); _settle.claimed = true; removePendingRedeem(_settle.mktId); showAnnounce(t('g_payout_done')); }
+  catch (e) { showAnnounce(t('g_claim_failed')); }
+  if (btn) { btn.disabled = false; btn.textContent = t('g_claim_payout'); }
+  _settle.busy = false;
+  _renderSettleMarket();
+}
+
+async function _doLevelUp() {
+  if (_settle.busy || !_settle.xp) return;
+  _settle.busy = true;
+  const btn = document.getElementById('settle-levelup');
+  if (btn) { btn.disabled = true; btn.textContent = t('g_leveling'); }
+  try {
+    const before = (loadCharacter()?.level) || 1;
+    const ok = await applyXp(_settle.xp.amount, _settle.xp.nonce, Uint8Array.from(_settle.xp.sig));
+    if (ok) {
+      _settle.leveled = true;
+      clearPendingXp();
+      const c = await getMyCharacter();
+      if (c) {
+        treeState.maxPoints = skillPointsForLevel(c.level);
+        const spent = Object.values(treeState.learned).reduce((s, lv) => s + lv * (lv + 1) / 2, 0);
+        treeState.points = Math.max(0, treeState.maxPoints - spent);
+        refreshSkillPanel();
+        if (c.level > before) showAnnounce(t('g_levelup', { n: c.level }));
+      }
+    }
+  } catch (e) { /* noop */ }
+  if (btn) { btn.disabled = false; btn.textContent = t('g_confirm_levelup'); }
+  _settle.busy = false;
+  _renderSettleXp();
+}
+
 async function connectToServer() {
-  setStatus('連線中...');
+  setStatus(t('g_connecting'));
   const client = new Client(SERVER_URL);
-  room = await client.joinOrCreate(ROOM_NAME);
+  const myNation = Number(loadCharacter()?.nation) || 0;   // 選哪國 → server 按此分隊（一定替哪國打）
+  room = await client.joinOrCreate(ROOM_NAME, { nation: myNation });
   mySessionId = room.sessionId;
   setStatus('');
   console.log('Connected! Session:', mySessionId);
   room.send('appearance', appearanceToNet());   // 告知其他玩家我的外觀
+  room.send('character', loadCharacter()?.nftId || '');   // 角色 NFT id（server 結算升級用＋防雙開）
+  room.send('pname', loadCharacter()?.name || '');         // 角色名（讓別人的名牌顯示真名）
+  room.send('whoami', suiState.address || '');             // 宣稱錢包地址（防同帳號雙開）
+
+  // 建築同步：別人（與自己）建的塔／方尖碑都經 server 廣播回來，對面也看得到
+  room.onMessage('build', data => {
+    const [sid, type, x, z, team] = data;
+    const mine = String(sid) === String(mySessionId);
+    if (type === 'tower') createTower(Number(x), Number(z), Number(team) || 1, mine);
+    else if (type === 'obelisk') createObelisk(Number(x), Number(z));
+  });
+  room.onMessage('pname', d => setRemoteName(String(d[0]), String(d[1] || '')));   // 遠端玩家名牌顯示真名
+  // 防多開：同帳號在他處登入 → 本連線被踢，顯示提示、不自動重連
+  let _kicked = false;
+  room.onMessage('kicked', () => { _kicked = true; _showKicked(); });
+  room.onLeave(code => { if (code === 4001 || _kicked) _showKicked(); });
 
   room.onMessage('remotePos', data => {
     const sid = String(data[0]);
@@ -2185,7 +2349,7 @@ async function connectToServer() {
   // Sui 簽章驗身結果
   room.onMessage('suiAuthOk', () => {
     _suiAuthed = true;
-    setStatus('🔗 Sui 已驗證');
+    setStatus(t('g_sui_verified'));
     setTimeout(() => setStatus(''), 2500);
     if (room) room.send('appearance', appearanceToNet());   // 驗身後重送 → 觸發 gear 驗證
   });
@@ -2207,15 +2371,17 @@ async function connectToServer() {
   });
   // 預測市場：server 自動結算 → 切新市 + 自動兌付彩金
   room.onMessage('marketNew', id => setActiveMarket(String(id)));
-  room.onMessage('marketResolved', async raw => {
-    const mktId = String(raw[0]); const winner = Number(raw[1]);
-    showAnnounce(`⚔ 戰爭結算：${winner === 0 ? 'Minas United' : 'Calaadia'} 勝！`);
-    if (!suiState.connected) return;
-    try {
-      const mkt = await getMarket(mktId);
-      const mine = await getMyShares(mkt);
-      if ((winner === 0 ? mine.a : mine.b) > 0) { await redeem(mktId); showAnnounce('🪙 預測市場彩金已兌付！'); }
-    } catch (e) { console.warn('redeem failed', e); }
+  // 角色等級結算：收到 server 簽章 → 上鏈 apply_xp → 從鏈上刷新等級 + 技能點
+  // 角色等級結算：存起來，在戰後結算面板由玩家 confirm 才上鏈 apply_xp（見 _doLevelUp）
+  room.onMessage('heroXp', (d) => {
+    _settle.xp = { amount: d.amount, nonce: d.nonce, sig: d.sig };
+    setPendingXp(_settle.xp);   // 存起來：錯過結算面板也能在世界地圖角色卡補升級
+    _renderSettleXp();
+  });
+  // 預測市場結算：存起來，在戰後結算面板由玩家 confirm 才領取派彩 redeem（見 _doClaim）
+  room.onMessage('marketResolved', raw => {
+    _settle.mktId = String(raw[0]); _settle.winner = Number(raw[1]);
+    _renderSettleMarket();
   });
   room.onMessage('playerLeft',   data => { removeRemotePlayer(String(data)); });
   room.onMessage('existingPlayers', data => {
@@ -2240,7 +2406,7 @@ async function connectToServer() {
     for (const e of data) {
       const eid = String(e[0]);
       if (!enemies[eid]) continue;
-      if (e[4] <= 0) { killCount++; elKillCount.textContent = killCount; killEnemy(eid); continue; }
+      if (e[4] <= 0) { killCount++; _gainXp(25); elKillCount.textContent = killCount; killEnemy(eid); continue; }
       enemies[eid].targetPos.set(e[1], 0, e[2]);
       updateEnemyHp(eid, e[3]);
     }
@@ -2387,7 +2553,7 @@ async function connectToServer() {
       }
       document.getElementById('death-screen').style.display = 'none';
       if (_rv) _rv.play('Idle', { retrigger: true });
-      showAnnounce('⚔ 重生！');
+      showAnnounce(t('g_respawn'));
     } else {
       // 其他玩家重生
       const rp = remotePlayers[String(sid)];
@@ -2439,20 +2605,20 @@ async function connectToServer() {
   });
   room.onMessage('tick', serverTime => updateRoundTimer(serverTime));
   room.onMessage('__playground_message_types', () => {});
-  room.onMessage('waveStart', wave => showAnnounce(`⚔ 第 ${wave} 波！`));
+  room.onMessage('waveStart', wave => showAnnounce(t('g_wave_n', { n: wave })));
   room.onMessage('yourTeam', team => {
     myTeam = Number(team);
     const teamEl = document.getElementById('team-display');
-    if (teamEl) teamEl.textContent = myTeam === 1 ? '🔵 藍方' : '🔴 紅方';
+    if (teamEl) teamEl.textContent = myTeam === 1 ? t('g_team_blue') : t('g_team_red');
     // 根據隊伍設定出生點（對稱於 z=0）
     const spawnZ = myTeam === 1 ? 47 : -47;
     const spawnX = (Math.random() - 0.5) * 6;
     playerPos.set(spawnX, getTerrainHeight(spawnX, spawnZ) + 3, spawnZ);
     if (playerGroup) playerGroup.position.copy(playerPos);
-    showAnnounce(myTeam === 1 ? '🔵 藍方陣營' : '🔴 紅方陣營');
+    showAnnounce(myTeam === 1 ? t('g_team_blue_side') : t('g_team_red_side'));
   });
   room.onMessage('waveClear', () => {
-    showAnnounce('✨ 波次清除！');
+    showAnnounce(t('g_wave_clear'));
     hp = Math.min(100, hp + 25); updateHpBar(hp);
   });
   room.onMessage('keepUpdate', ([team, val]) => {
@@ -2470,13 +2636,13 @@ async function connectToServer() {
   });
   room.onMessage('keepDestroyed', destroyedTeam => {
     gameOver = true; isDead = true;
-    showGameOver(Number(destroyedTeam) === myTeam);
+    _showSettlement(Number(destroyedTeam) !== myTeam);   // 對方主堡被毀 = 我方勝；玩家按「重新開始」離場 → server 0 人時重置新場
   });
   room.onMessage('enemyReachedKeep', ([eid, team]) => {
     const en = enemies[String(eid)];
     if (en) en.atKeep = true; // 停駐，不再 lerp 移動
     const isMyKeep = (team !== myTeam);
-    if (isMyKeep) showAnnounce('🏰 主堡受到攻擊！');
+    if (isMyKeep) showAnnounce(t('g_keep_attacked'));
   });
   room.onMessage('keepFire', ([team, targetEid, flightMs]) => {
     spawnKeepFireball(Number(team), String(targetEid), (Number(flightMs) || 800) / 1000);
@@ -2500,7 +2666,7 @@ function updatePlayer(dt) {
     if (respawnCountdown > 0) {
       respawnCountdown -= dt;
       const el = document.getElementById('respawn-cd');
-      if (el) el.textContent = `${Math.ceil(Math.max(0, respawnCountdown))} 秒後重生...`;
+      if (el) el.textContent = t('g_respawn_in', { n: Math.ceil(Math.max(0, respawnCountdown)) });
     }
     return;
   }
@@ -2802,10 +2968,14 @@ function updatePlayer(dt) {
     wasGrounded = isGrounded;
 
     // 以 playerPos 為基底（支援外部傳送），不讀 charBody.translation()
+    // 邊界：把移動目標限制在島內（圓形 R=54），不讓玩家走進海或掉出界
+    let _tx = playerPos.x + corrected.x, _tz = playerPos.z + corrected.z;
+    const _BR = 54, _bd2 = _tx * _tx + _tz * _tz;
+    if (_bd2 > _BR * _BR) { const _bd = Math.sqrt(_bd2); _tx = _tx / _bd * _BR; _tz = _tz / _bd * _BR; }
     charBody.setNextKinematicTranslation({
-      x: playerPos.x + corrected.x,
+      x: _tx,
       y: playerPos.y + 0.5 + corrected.y,
-      z: playerPos.z + corrected.z,
+      z: _tz,
     });
     physics.step();
     _physicsStepped = true;
@@ -2998,13 +3168,25 @@ function _reportLoopError(err) {
   console.error('[game loop]', err);
   if (_loopErrShown) return;
   _loopErrShown = true;
-  setStatus('⚠ 錯誤: ' + (err?.message || err));
+  setStatus(t('g_err', { msg: err?.message || err }));
 }
 window.addEventListener('error', e => _reportLoopError(e.error || e.message));
 
 renderer.setAnimationLoop(() => {
+  if (!_enteredGame) { try { _renderIntroView(); } catch (err) { _reportLoopError(err); } return; }   // 未進場：電影鏡頭繞看地圖當進場背景
   try { _gameFrame(); } catch (err) { _reportLoopError(err); }
 });
+
+// 進場前：一台 cinematic 鏡頭緩慢繞看整個戰場地圖（無玩家、無 HUD），當作開場背景
+function _renderIntroView() {
+  const t = performance.now() / 1000;
+  const r = 92, h = 44;
+  camera.position.set(Math.cos(t * 0.04) * r, h + Math.sin(t * 0.07) * 4, Math.sin(t * 0.04) * r);
+  camera.lookAt(0, 12, 0);   // 略低角度看向中心：地圖鋪在下半、天空在上半，近側邊緣落在畫面外
+  if (scene.fog) { scene.fog.near = 30; scene.fog.far = 220; }   // 霧距：島嶼本身清楚、遠處外海與邊界融進天空色
+  try { updateEnvironment(0.016); } catch { /* noop */ }
+  renderer.render(scene, camera);
+}
 
 function _gameFrame() {
   const rawDt = Math.min(clock.getDelta(), 0.05);
@@ -3038,6 +3220,7 @@ function _gameFrame() {
   updateWorldAnim(dt, playerPos, camera.position);   // 玩家=草壓彎中心、相機=billboard 視點
   updateShadowFollow();
   updateRagdolls();   // 必須在所有 mixer 更新之後：物理覆寫骨骼姿態
+  _updateNameLabel();  // 本地玩家頭上的角色名牌
   if (usePostFX()) {
     gradePass.uniforms.uTime.value += dt;   // 膠片顆粒動畫時鐘
     composer.render();
@@ -3065,7 +3248,7 @@ initSummon(scene);
 initEnemy(scene, camera);
 initRemotePlayer(scene);
 initSoI(scene, () => physics, RAPIER);
-initDummy(scene, camera, () => { killCount++; elKillCount.textContent = killCount; });
+initDummy(scene, camera, () => { killCount++; _gainXp(25); elKillCount.textContent = killCount; });
 initSummonSystem(scene, camera, playerPos, mouse, atkRingMesh);
 initCrystal(scene, camera, playerPos, keys, () => isDead);
 initBuildMenu(scene, playerPos, () => playerYaw, crystalState, towersLeftRef,
@@ -3099,6 +3282,8 @@ let _enteredGame = false;
 function startGame() {
   if (_enteredGame) return;
   _enteredGame = true;
+  if (scene.fog) { scene.fog.near = 26; scene.fog.far = 170; }   // 恢復遊戲霧距（cinematic 進場時曾拉近）
+  const hudEl = document.getElementById('hud'); if (hudEl) hudEl.style.display = '';   // 進場才顯示 HUD
   initSfx();                                 // 進入時解鎖音效（Enter 是使用者手勢）
   rebuildPlayerAppearance('model');         // 套用所屬國染色到本地模型
   connectToServer().catch(console.error);
@@ -3123,7 +3308,7 @@ initPhysics().then(() => {
   setCrystalPlayerRefs(playerGroup, playerWeaponGroup, _torso);
   // 不自動連線：等開場畫面按「進入戰場」（startGame）
 }).catch(err => {
-  setStatus('初始化失敗: ' + err.message);
+  setStatus(t('g_init_fail', { msg: err.message }));
   console.error(err);
   buildPlayerMesh();
   setSummonPlayerGroup(playerGroup);

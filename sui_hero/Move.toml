@@ -1,0 +1,10 @@
+[package]
+name = "fr0_hero"
+edition = "2024.beta"
+# FR0 Hero —— owned、可交易的角色 NFT（身分 + 等級）。獨立 package。
+# 造形由另外鑄造的 Gear(cosmetic, 主 package)裝備而成；Hero 不存造形。
+# 不顯式宣告 Sui 框架依賴 → CLI 自動帶入內建框架（免 git 下載，避開 SSL）
+
+[addresses]
+fr0 = "0x0"
+sui = "0x2"

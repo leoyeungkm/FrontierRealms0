@@ -1,0 +1,10 @@
+[package]
+name = "fr0_gearmarket"
+edition = "2024.beta"
+# FR0 Gear Market —— 泛型 NFT 掛單買賣（gear / hero 等 owned NFT）。獨立 package。
+# 泛型 Listing<T>，不依賴 cosmetic package（型別由 client 以 type argument 帶入）。
+# 不顯式宣告 Sui 框架依賴 → CLI 自動帶入內建框架（免 git，避開 SSL）
+
+[addresses]
+fr0 = "0x0"
+sui = "0x2"

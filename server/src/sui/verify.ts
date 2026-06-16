@@ -1,6 +1,7 @@
 // ─── Sui 鏈上驗證（伺服器權威端）─────────────────────────────
 // 1) verifyLogin：驗證玩家簽署的登入訊息 → 綁定 sessionId ↔ Sui 地址（防偽造）
 // 2) verifyCosmetics：查鏈確認玩家「真的持有」所裝備的外觀 NFT（鏈為 source of truth）
+import "dotenv/config";   // 保證本模組求值（讀 process.env）前 .env 已載入；不依賴 index.ts 的載入時機
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
 

@@ -60,6 +60,16 @@ export function equipLoadout(cfg, objectId) {
   _changed('model');   // 換整套 → 重建模型
 }
 
+/** 裝備「單件 Gear NFT」：把該部位換成此 NFT 的 variant，並記 objectId（server 驗證 ownership）*/
+export function equipGearPiece(slot, variant, objectId) {
+  if (slot === 'weapon') appearance.gsSkin = variant;
+  else if (['head', 'body', 'arms', 'legs', 'cape'].includes(slot)) appearance[slot] = variant;
+  else return;
+  appearance.chainItems = appearance.chainItems || {};
+  appearance.chainItems[slot] = objectId;
+  _changed(slot === 'weapon' ? 'weapon' : 'gear');
+}
+
 /** 設定已連接的 Sui 地址（main.js 在連接成功後呼叫；觸發廣播） */
 export function setSuiAddress(addr) {
   appearance.suiAddress = addr || null;

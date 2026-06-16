@@ -5,14 +5,17 @@ import { NATIONS } from './intro.js';
 import { suiEnabled } from '../sui/config.js';
 import { suiState } from '../sui/wallet.js';
 import { getMarket, getMyShares, buy, sell, toSui } from '../sui/market.js';
-import { t } from './i18n.js';
+import { t, onLangChange } from './i18n.js';
 
 const TRADE_SUI = 0.1;
 let _on = false, _poll = null, _getKeeps = () => ({ hp1: 1, hp2: 1, max: 1 });
 let _mkt = null, _mine = { a: 0, b: 0 }, _busy = false;
 const hex = c => '#' + c.toString(16).padStart(6, '0');
 
-export function initMarketHud(getKeeps) { if (getKeeps) _getKeeps = getKeeps; }
+export function initMarketHud(getKeeps) {
+  if (getKeeps) _getKeeps = getKeeps;
+  onLangChange(() => { if (_on) _render(); });
+}
 
 /** 切換顯示；回傳新狀態（main.js 據此處理鼠標鎖定）*/
 export function toggleMarketHud() {
@@ -28,8 +31,13 @@ export function isMarketHudOpen() { return _on; }
 
 async function _refresh() {
   if (!_on) return;
-  if (suiEnabled() && suiState.connected) {
-    try { _mkt = await getMarket(); _mine = await getMyShares(_mkt); } catch { /* keep last */ }
+  // 市場是公開鏈上物件：未登入也讀得到即時 %／戰況；只有「我的持倉」才需要地址。
+  // （別把讀市場 gate 在 connected 後面，否則重入未連錢包時 _mkt 永遠是 null → 買鍵全灰）
+  if (suiEnabled()) {
+    try {
+      _mkt = await getMarket();
+      _mine = suiState.address ? await getMyShares(_mkt) : { a: 0, b: 0 };
+    } catch { /* keep last */ }
   }
   _render();
 }

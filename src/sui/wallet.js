@@ -27,13 +27,42 @@ export function onSuiChange(cb) { _listeners.push(cb); }
 function _emit() { for (const cb of _listeners) { try { cb(suiState); } catch { /* noop */ } } }
 
 // ── 偵測錢包 ─────────────────────────────────────────────────
-function _findSuiWallet() {
-  const wallets = getWallets().get();
-  return wallets.find(w =>
-    (w.chains || []).some(c => c.startsWith('sui:')) &&
+function _listSuiWallets() {
+  // 放寬：只要支援標準連線 + 任一 Sui 簽章 feature 即視為 Sui 錢包
+  //（不卡 chains —— 部分錢包註冊當下 chains 為空，會被舊條件誤排除而「連不到」）
+  return getWallets().get().filter(w =>
     w.features['standard:connect'] &&
-    (w.features['sui:signAndExecuteTransaction'] || w.features['sui:signAndExecuteTransactionBlock'])
-  ) || null;
+    (w.features['sui:signTransaction'] || w.features['sui:signAndExecuteTransaction'] || w.features['sui:signAndExecuteTransactionBlock'])
+  );
+}
+function _findSuiWallet() { return _listSuiWallets()[0] || null; }
+
+// 裝了多個 Sui 錢包時，讓使用者自己選（只有一個則直接用）
+function _pickWallet(wallets) {
+  return new Promise((resolve) => {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;background:rgba(6,8,16,.82);';
+    const box = document.createElement('div');
+    box.style.cssText = 'background:linear-gradient(180deg,#1a2236,#0d1322);border:1px solid rgba(120,150,210,.35);border-radius:14px;padding:20px;min-width:280px;box-shadow:0 20px 70px rgba(0,0,0,.6);';
+    box.innerHTML = '<div style="font:700 15px Cinzel,serif;color:#c9b27a;text-align:center;margin-bottom:14px;">選擇錢包 · Choose wallet</div>';
+    wallets.forEach(w => {
+      const b = document.createElement('button');
+      b.style.cssText = 'display:flex;align-items:center;gap:10px;width:100%;padding:10px 14px;margin-bottom:8px;border:1px solid rgba(120,150,210,.25);border-radius:10px;background:rgba(255,255,255,.05);color:#e8eefc;cursor:pointer;font:600 14px Oswald,sans-serif;';
+      b.innerHTML = (w.icon ? '<img src="' + w.icon + '" width="24" height="24" style="border-radius:5px">' : '') + '<span>' + w.name + '</span>';
+      b.onmouseenter = () => { b.style.background = 'rgba(120,150,210,.2)'; };
+      b.onmouseleave = () => { b.style.background = 'rgba(255,255,255,.05)'; };
+      b.onclick = () => { try { document.body.removeChild(ov); } catch (e) { /* noop */ } resolve(w); };
+      box.appendChild(b);
+    });
+    const cancel = document.createElement('button');
+    cancel.textContent = '取消 · Cancel';
+    cancel.style.cssText = 'width:100%;padding:8px;margin-top:4px;border:none;border-radius:8px;background:rgba(120,130,160,.3);color:#cfe0ff;cursor:pointer;font:600 12px Oswald,sans-serif;';
+    cancel.onclick = () => { try { document.body.removeChild(ov); } catch (e) { /* noop */ } resolve(null); };
+    box.appendChild(cancel);
+    ov.appendChild(box);
+    ov.onclick = (e) => { if (e.target === ov) { try { document.body.removeChild(ov); } catch (er) { /* noop */ } resolve(null); } };
+    document.body.appendChild(ov);
+  });
 }
 
 export function initSui() {
@@ -41,6 +70,7 @@ export function initSui() {
   suiState.zkEnabled = zkEnabled();
   const refresh = () => {
     suiState.available = !!_findSuiWallet();
+    _tryWalletReconnect();          // 重整後自動靜默重連（先前已授權者）
     _emit();
   };
   refresh();
@@ -73,16 +103,27 @@ export async function connectZkLogin() {
 // ── 連線 ─────────────────────────────────────────────────────
 export async function connectWallet() {
   if (!suiEnabled()) throw new Error('鏈上功能未啟用（合約尚未部署）');
-  const wallet = _findSuiWallet();
-  if (!wallet) throw new Error('找不到 Sui 錢包，請安裝 Sui Wallet 或 Suiet 擴充功能');
+  const wallets = _listSuiWallets();
+  if (!wallets.length) throw new Error('找不到 Sui 錢包，請安裝 Sui Wallet / Slush / Suiet 等瀏覽器擴充功能');
+  const wallet = wallets.length === 1 ? wallets[0] : await _pickWallet(wallets);
+  if (!wallet) return null;   // 使用者取消選擇
   const res = await wallet.features['standard:connect'].connect();
   const account = (res?.accounts || wallet.accounts)[0];
   if (!account) throw new Error('錢包未授權任何帳號');
+  _adoptWallet(wallet, account);
+  await refreshCosmetics();
+  _emit();
+  return suiState.address;
+}
+
+/** 套用已連線錢包帳號（互動連線與靜默重連共用），並記旗標供下次自動重連 */
+function _adoptWallet(wallet, account) {
   suiState.wallet = wallet;
   suiState.account = account;
   suiState.address = account.address;
   suiState.mode = 'wallet';
   suiState.connected = true;
+  try { localStorage.setItem('fr0_wallet', '1'); } catch { /* noop */ }
   // 帳號切換 / 斷線
   try {
     wallet.features['standard:events']?.on('change', () => {
@@ -92,13 +133,26 @@ export async function connectWallet() {
       _emit();
     });
   } catch { /* noop */ }
-  await refreshCosmetics();
-  _emit();
-  return suiState.address;
+}
+
+/** 重整後靜默重連（不彈窗）：先前已授權且有旗標才嘗試 */
+let _reconnectTried = false;
+async function _tryWalletReconnect() {
+  if (_reconnectTried || suiState.connected) return;
+  if (localStorage.getItem('fr0_wallet') !== '1') return;
+  const wallet = _findSuiWallet();
+  if (!wallet) return;             // 擴充尚未注入：register 事件會再次觸發 refresh
+  _reconnectTried = true;
+  try {
+    const res = await wallet.features['standard:connect'].connect({ silent: true });
+    const account = (res?.accounts || wallet.accounts)[0];
+    if (account) { _adoptWallet(wallet, account); await refreshCosmetics(); _emit(); }
+  } catch { /* 靜默失敗：保持未連線，使用者可手動連 */ }
 }
 
 export function disconnectWallet() {
   try { suiState.wallet?.features['standard:disconnect']?.disconnect(); } catch { /* noop */ }
+  try { localStorage.removeItem('fr0_wallet'); } catch { /* noop */ }
   if (suiState.mode === 'zklogin') zkLogout();
   suiState.connected = false;
   suiState.mode = null;
@@ -178,6 +232,35 @@ export async function mintCosmetic({ appearance, previewDataUrl, name, onProgres
       tx.pure.string(imageUrl),
       tx.pure.string(cfgBlob),
       tx.pure.u8(rarity),
+    ],
+  });
+  const r = await _signExec(tx);
+  await refreshCosmetics();
+  _emit();
+  return r;
+}
+
+// ── 鑄造單件 Gear NFT（每個部位各一個 NFT；slot 對應 cosmetic 的部位）──
+export async function mintGearPiece({ appearance, slot, previewDataUrl, onProgress }) {
+  if (!suiState.connected) throw new Error('請先連接錢包');
+  const variant = slot === 'weapon' ? appearance.gsSkin : appearance[slot];
+  if (!variant || variant === 'none') throw new Error('此部位為「無」，不需鑄造');
+  const tint = (appearance.tint == null) ? NO_TINT : appearance.tint;
+  const rarity = rarityOf(slot, variant, appearance.tint);
+
+  onProgress?.('上傳預覽圖到 Walrus…');
+  let imageUrl = '';
+  if (previewDataUrl) { try { imageUrl = blobUrl(await storeDataUrl(previewDataUrl)); } catch (e) { console.warn('預覽圖上傳失敗：', e.message); } }
+  onProgress?.('上傳設定到 Walrus…');
+  const cfgBlob = await storeBlob(JSON.stringify({ slot, variant, tint: appearance.tint }));
+
+  onProgress?.('鑄造 NFT（請在錢包簽名）…');
+  const tx = new Transaction();
+  tx.moveCall({
+    target: `${PACKAGE_ID}::cosmetic::mint`,
+    arguments: [
+      tx.pure.string(slot), tx.pure.string(String(variant)), tx.pure.u32(tint),
+      tx.pure.string(`${variant} ${slot}`), tx.pure.string(imageUrl), tx.pure.string(cfgBlob), tx.pure.u8(rarity),
     ],
   });
   const r = await _signExec(tx);

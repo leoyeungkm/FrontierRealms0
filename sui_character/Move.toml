@@ -1,0 +1,9 @@
+[package]
+name = "fr0_character"
+edition = "2024.beta"
+# FR0 角色 NFT（可升級）— 獨立 package，不影響現有 market / cosmetic / achievement
+# 不顯式宣告 Sui 框架依賴 → CLI 自動帶入內建框架（免 git 下載，避開 SSL）
+
+[addresses]
+fr0 = "0x0"
+sui = "0x2"

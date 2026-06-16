@@ -138,7 +138,11 @@ function smoothHeightAt(x, z) {
   // 水晶礦周圍整平（採礦空地）
   const cd = crystalDist(x, z);
   if (cd < 6.5) h = 4 + (h - 4) * _ss((cd - 2.8) / 3.7);
-  return Math.max(1, h);
+  // 島形：離地圖中心越遠越低，邊緣沉入海面下 → 圓形島輪廓，消除 128×128 方形邊界
+  const dx = x - W / 2, dz = z - D / 2;
+  const edge = _ss((Math.sqrt(dx * dx + dz * dz) - 58) / 8);   // 半徑 58 內為島、66 外沉海（城堡 z=±50、側路 x=±34 都在島內）
+  h = h * (1 - edge) - 9 * edge;
+  return Math.max(-7, h);
 }
 
 // 高度網格快取：視覺 mesh / 物理 trimesh / getTerrainHeight 共用同一份資料
@@ -458,6 +462,15 @@ function buildWater(scene) {
   water.rotation.x = -Math.PI / 2;
   water.position.y = waterY;
   scene.add(water);
+
+  // 遠景外海：一大片延伸到天際的海，蓋掉地圖邊緣外的虛空（受霧 → 遠處融入天空色，看不到硬邊界）
+  const horizon = new THREE.Mesh(
+    new THREE.CircleGeometry(700, 64),
+    new THREE.MeshBasicMaterial({ color: 0x3a6589, fog: true })
+  );
+  horizon.rotation.x = -Math.PI / 2;
+  horizon.position.y = waterY - 0.6;   // 略低於精緻水面，避免 z-fighting
+  scene.add(horizon);
 }
 
 /** 每幀呼叫：推進水面 / 草地搖曳時間；playerPos=壓彎中心、camPos=billboard 視點 */
