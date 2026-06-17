@@ -91,13 +91,15 @@ See [`server/DEPLOY.md`](server/DEPLOY.md) for the full guide.
 
 ## ⛓️ On-chain (Sui testnet)
 
-Public package IDs (override via `.env` `VITE_FR0_*`; see `src/sui/config.js`):
+Public IDs (override via `.env` `VITE_FR0_*`; see `src/sui/config.js`):
 
-| Package | ID | Modules |
+| Object | ID | Modules / Note |
 |---|---|---|
-| Main | `0x1712a9d8…d1fd` | market · warbond · cosmetic · achievement |
-| Hero | `0xe51bd7ed…ab1c` | hero (mint_hero / apply_xp / set_image) |
-| Gear Market | `0x540d5442…c0c0` | gearmarket (list / buy / delist) |
+| Main package | `0x1712a9d8fcb6a6325a2336156d9257fa4afc5b3b215985edf85750d53ba7d1fd` | market · warbond · cosmetic · achievement |
+| Market (CPMM) | `0x585a99d8d30f146a0612e4d63be52fc0a74628b16b38ee71ed912e037cefde8f` | shared object (B3 AMM) |
+| Hero package | `0xe51bd7edc04b6c101e79ac2438e67a778e2ba821e5fa66353d730a3a4578ab1c` | mint_hero / apply_xp / set_image |
+| Hero Config | `0x0eef570e98739a109377dc593c277ddb99e206c63a50d2932723616892786ef9` | shared (server pubkey) |
+| Gear Market | `0x540d5442fb101b77b20ec690d1b3bddb8d8c9a9c4fec794c12a598aa1644c0c0` | gearmarket: list / buy / delist |
 
 > ⚠️ Secrets — admin-cap private keys and `FR0_ADMIN_SECRET` — are **never** committed; they live only in `.env` / host environment variables.
 
