@@ -26,3 +26,8 @@ sui.exe
 .claude/
 .DS_Store
 Thumbs.db
+
+# 開發筆記與早期原型（本地保留，不上 GitHub）
+/FEZ_*.md
+/fez_*.html
+/voxel_character_builder.html
