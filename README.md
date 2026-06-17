@@ -8,6 +8,22 @@ FR0 fuses real-time voxel combat with on-chain ownership and a live prediction m
 
 ---
 
+## 🏆 Sui Overflow 2026
+
+FR0 is a **Sui Overflow 2026** submission (primary track: **Walrus** — decentralized storage), built for deep Sui-stack integration. Full write-up: **[`SUI_OVERFLOW.md`](SUI_OVERFLOW.md)**.
+
+| Integration | What it does | Source |
+|---|---|---|
+| **Move packages** | `cosmetic` · `achievement` · `warbond` · `market` | [`sui/sources/`](sui/sources/) |
+| **Hero NFT** | Owned, tradeable hero with on-chain XP / levels | [`sui_hero/sources/hero.move`](sui_hero/sources/hero.move) |
+| **Gear marketplace** | Generic NFT listings — `list` / `buy` / `delist` | [`sui_market/sources/gearmarket.move`](sui_market/sources/gearmarket.move) |
+| **Walrus** | Player cosmetics — PNG art + loadout JSON stored off-chain, referenced on-chain by `blobId` | [`src/sui/walrus.js`](src/sui/walrus.js) |
+| **zkLogin** | Google sign-in → Sui address, no wallet required | [`src/sui/zklogin.js`](src/sui/zklogin.js) |
+| **Prediction market** | CPMM on battle outcome + War Bonds on the world map | [`src/sui/market.js`](src/sui/market.js) · [`warbond.js`](src/sui/warbond.js) |
+| **Server oracle** | Chain-verified NFT ownership + ed25519-signed XP grants | [`server/src/sui/`](server/src/sui/) |
+
+All contracts are live on **Sui testnet** — IDs in [`src/sui/config.js`](src/sui/config.js).
+
 ## ✨ Features
 
 - ⚔️ **Real-time voxel battles** — storm enemy keeps, capture towers, hold the front line (Colyseus multiplayer).
